@@ -17,32 +17,54 @@ private struct DoubleClickModifier: ViewModifier {
 private struct DoubleClickHelper: NSViewRepresentable {
     let action: () -> Void
 
-    // SwiftUI manages exactly one Coordinator per view instance
     func makeCoordinator() -> Coordinator { Coordinator() }
 
-    func makeNSView(context: Context) -> NSView {
-        let v = NSView()
+    func makeNSView(context: Context) -> HookView {
+        let v = HookView()
+        v.coordinator = context.coordinator
         context.coordinator.action = action
-        DispatchQueue.main.async {
-            var candidate: NSView? = v.superview
-            while let cur = candidate {
-                if let table = cur as? NSTableView {
-                    table.doubleAction = #selector(Coordinator.doubleClicked(_:))
-                    table.target = context.coordinator
-                    // Retain coordinator so it outlives this helper view
-                    objc_setAssociatedObject(table, &associatedKey,
-                                            context.coordinator, .OBJC_ASSOCIATION_RETAIN)
-                    return
-                }
-                candidate = cur.superview
-            }
-        }
         return v
     }
 
-    func updateNSView(_ nsView: NSView, context: Context) {
-        // Keep the coordinator's action up to date (e.g. when selectedID changes)
+    func updateNSView(_ nsView: HookView, context: Context) {
         context.coordinator.action = action
+    }
+
+    // Custom NSView that hooks up when it enters the window hierarchy
+    final class HookView: NSView {
+        weak var coordinator: Coordinator?
+
+        override func viewDidMoveToSuperview() {
+            super.viewDidMoveToSuperview()
+            guard superview != nil else { return }
+            DispatchQueue.main.async { [weak self] in
+                self?.wireUp()
+            }
+        }
+
+        private func wireUp() {
+            guard let coordinator else { return }
+            // Walk UP the hierarchy; at each level search DOWN for NSTableView
+            var node: NSView? = self.superview
+            while let v = node {
+                if let table = firstTableView(in: v) {
+                    table.doubleAction = #selector(Coordinator.doubleClicked(_:))
+                    table.target = coordinator
+                    objc_setAssociatedObject(table, &associatedKey,
+                                            coordinator, .OBJC_ASSOCIATION_RETAIN)
+                    return
+                }
+                node = v.superview
+            }
+        }
+
+        private func firstTableView(in view: NSView) -> NSTableView? {
+            if let t = view as? NSTableView { return t }
+            for sub in view.subviews {
+                if let found = firstTableView(in: sub) { return found }
+            }
+            return nil
+        }
     }
 
     final class Coordinator: NSObject {
