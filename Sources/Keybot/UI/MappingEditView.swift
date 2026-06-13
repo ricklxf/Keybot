@@ -59,68 +59,132 @@ struct MappingEditView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            Form {
-                Section("规则名称") {
-                    TextField("名称", text: $name)
-                }
+            // Header
+            HStack {
+                Image(systemName: "keyboard")
+                    .font(.title2)
+                    .foregroundStyle(.secondary)
+                Text(name.isEmpty ? "新规则" : name)
+                    .font(.headline)
+                Spacer()
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 20)
+            .padding(.bottom, 12)
 
-                Section("触发按键") {
-                    KeyRecorderView(trigger: $trigger)
-                }
+            Divider()
 
-                Section("执行操作") {
-                    Picker("操作类型", selection: $actionType) {
-                        ForEach(ActionType.allCases, id: \.self) {
-                            Text($0.rawValue).tag($0)
+            ScrollView {
+                VStack(spacing: 16) {
+                    // Name
+                    settingSection(title: "规则名称") {
+                        TextField("名称", text: $name)
+                            .textFieldStyle(.plain)
+                            .font(.body)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 8)
+                            .background(Color(NSColor.controlBackgroundColor))
+                            .clipShape(RoundedRectangle(cornerRadius: 7))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 7)
+                                    .strokeBorder(Color(NSColor.separatorColor), lineWidth: 0.5)
+                            )
+                    }
+
+                    // Trigger
+                    settingSection(title: "触发按键") {
+                        KeyRecorderView(trigger: $trigger)
+                    }
+
+                    // Action
+                    settingSection(title: "执行操作") {
+                        VStack(spacing: 8) {
+                            Picker("", selection: $actionType) {
+                                ForEach(ActionType.allCases, id: \.self) {
+                                    Text($0.rawValue).tag($0)
+                                }
+                            }
+                            .pickerStyle(.segmented)
+                            .labelsHidden()
+
+                            if actionType == .remap {
+                                KeyRecorderView(trigger: targetTrigger)
+                            }
                         }
                     }
-                    .pickerStyle(.segmented)
 
-                    if actionType == .remap {
-                        KeyRecorderView(trigger: targetTrigger)
-                    }
-                }
+                    // Condition
+                    settingSection(title: "生效范围") {
+                        VStack(spacing: 8) {
+                            Picker("", selection: $conditionType) {
+                                ForEach(ConditionType.allCases, id: \.self) {
+                                    Text($0.rawValue).tag($0)
+                                }
+                            }
+                            .pickerStyle(.segmented)
+                            .labelsHidden()
 
-                Section("生效范围") {
-                    Picker("应用范围", selection: $conditionType) {
-                        ForEach(ConditionType.allCases, id: \.self) {
-                            Text($0.rawValue).tag($0)
-                        }
-                    }
-                    .pickerStyle(.segmented)
+                            if conditionType == .only {
+                                ZStack(alignment: .topLeading) {
+                                    TextEditor(text: $bundleIDsText)
+                                        .font(.system(.body, design: .monospaced))
+                                        .frame(height: 80)
+                                        .padding(4)
+                                        .background(Color(NSColor.controlBackgroundColor))
+                                        .clipShape(RoundedRectangle(cornerRadius: 7))
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 7)
+                                                .strokeBorder(Color(NSColor.separatorColor), lineWidth: 0.5)
+                                        )
 
-                    if conditionType == .only {
-                        ZStack(alignment: .topLeading) {
-                            TextEditor(text: $bundleIDsText)
-                                .frame(height: 72)
-                                .font(.system(.body, design: .monospaced))
-                            if bundleIDsText.isEmpty {
-                                Text("每行一个 Bundle ID\n例：com.apple.finder")
-                                    .font(.system(.body, design: .monospaced))
-                                    .foregroundStyle(.tertiary)
-                                    .padding(.top, 4)
-                                    .padding(.leading, 4)
-                                    .allowsHitTesting(false)
+                                    if bundleIDsText.isEmpty {
+                                        Text("每行一个 Bundle ID\n例：com.apple.finder")
+                                            .font(.system(.body, design: .monospaced))
+                                            .foregroundStyle(Color(NSColor.placeholderTextColor))
+                                            .padding(.horizontal, 10)
+                                            .padding(.vertical, 12)
+                                            .allowsHitTesting(false)
+                                    }
+                                }
                             }
                         }
                     }
                 }
+                .padding(20)
             }
-            .formStyle(.grouped)
 
             Divider()
 
+            // Buttons
             HStack {
                 Button("取消") { dismiss() }
                     .keyboardShortcut(.cancelAction)
+                    .buttonStyle(.bordered)
                 Spacer()
                 Button("保存") { save() }
                     .keyboardShortcut(.defaultAction)
+                    .buttonStyle(.borderedProminent)
                     .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
             }
-            .padding()
+            .padding(.horizontal, 20)
+            .padding(.vertical, 14)
         }
-        .frame(width: 420, height: 500)
+        .frame(width: 400)
+        .fixedSize(horizontal: false, vertical: true)
+    }
+
+    // MARK: - Helpers
+
+    @ViewBuilder
+    private func settingSection<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .font(.subheadline)
+                .fontWeight(.medium)
+                .foregroundStyle(.secondary)
+            content()
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func save() {

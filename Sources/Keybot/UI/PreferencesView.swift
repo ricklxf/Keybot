@@ -10,43 +10,10 @@ struct PreferencesView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            List(selection: $selectedID) {
-                ForEach(store.mappings) { mapping in
-                    MappingRowView(mapping: mapping)
-                        .tag(mapping.id)
-                        .onTapGesture(count: 2) { beginEdit(mapping) }
-                }
-                .onMove { from, to in store.mappings.move(fromOffsets: from, toOffset: to) }
-                .onDelete { idxs in store.mappings.remove(atOffsets: idxs) }
-            }
-            .listStyle(.inset(alternatesRowBackgrounds: true))
-
-            Divider()
-
-            HStack(spacing: 6) {
-                Button { addNew() } label: { Image(systemName: "plus") }
-                    .buttonStyle(.borderless)
-                    .help("添加规则")
-
-                Button { deleteSelected() } label: { Image(systemName: "minus") }
-                    .buttonStyle(.borderless)
-                    .disabled(selectedID == nil)
-                    .help("删除选中规则")
-
-                Button { editSelected() } label: { Image(systemName: "pencil") }
-                    .buttonStyle(.borderless)
-                    .disabled(selectedID == nil)
-                    .help("编辑规则")
-
-                Spacer()
-
-                Button("恢复默认") { showingResetAlert = true }
-                    .buttonStyle(.borderless)
-            }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
+            mappingList
+            bottomBar
         }
-        .frame(minWidth: 580, minHeight: 400)
+        .frame(minWidth: 620, minHeight: 440)
         .sheet(isPresented: $showingEdit) {
             if let m = editingMapping {
                 MappingEditView(mapping: m) { saved in
@@ -68,6 +35,87 @@ struct PreferencesView: View {
         }
     }
 
+    // MARK: - List
+
+    private var mappingList: some View {
+        List(selection: $selectedID) {
+            ForEach(store.mappings) { mapping in
+                MappingRowView(mapping: mapping)
+                    .tag(mapping.id)
+                    .listRowInsets(EdgeInsets(top: 0, leading: 12, bottom: 0, trailing: 12))
+                    .onTapGesture(count: 2) { beginEdit(mapping) }
+            }
+            .onMove { store.mappings.move(fromOffsets: $0, toOffset: $1) }
+            .onDelete { store.mappings.remove(atOffsets: $0) }
+        }
+        .listStyle(.inset(alternatesRowBackgrounds: true))
+        .contextMenu(forSelectionType: UUID.self, menu: { ids in
+            if let id = ids.first, let m = store.mappings.first(where: { $0.id == id }) {
+                Button("编辑…") { beginEdit(m) }
+                Divider()
+                Button("删除", role: .destructive) {
+                    store.mappings.removeAll { $0.id == id }
+                    selectedID = nil
+                }
+            }
+        })
+    }
+
+    // MARK: - Bottom Bar (Finder-style)
+
+    private var bottomBar: some View {
+        HStack(spacing: 0) {
+            // Grouped +/- buttons
+            HStack(spacing: 0) {
+                Button { addNew() } label: {
+                    Image(systemName: "plus")
+                        .frame(width: 28, height: 22)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.borderless)
+                .help("添加规则")
+
+                Divider().frame(height: 14)
+
+                Button { deleteSelected() } label: {
+                    Image(systemName: "minus")
+                        .frame(width: 28, height: 22)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.borderless)
+                .disabled(selectedID == nil)
+                .help("删除选中规则")
+            }
+            .background(
+                RoundedRectangle(cornerRadius: 5)
+                    .strokeBorder(Color(NSColor.separatorColor), lineWidth: 0.5)
+            )
+
+            Divider().frame(height: 14).padding(.horizontal, 6)
+
+            Button { editSelected() } label: {
+                Image(systemName: "pencil")
+                    .frame(width: 28, height: 22)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.borderless)
+            .disabled(selectedID == nil)
+            .help("编辑规则")
+
+            Spacer()
+
+            Button("恢复默认") { showingResetAlert = true }
+                .buttonStyle(.borderless)
+                .foregroundStyle(.secondary)
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 6)
+        .background(Color(NSColor.controlBackgroundColor))
+        .overlay(alignment: .top) { Divider() }
+    }
+
+    // MARK: - Actions
+
     private func addNew() {
         isAddingNew = true
         editingMapping = KeyMapping(
@@ -79,8 +127,7 @@ struct PreferencesView: View {
     }
 
     private func editSelected() {
-        guard let id = selectedID,
-              let m = store.mappings.first(where: { $0.id == id }) else { return }
+        guard let id = selectedID, let m = store.mappings.first(where: { $0.id == id }) else { return }
         beginEdit(m)
     }
 
@@ -97,44 +144,81 @@ struct PreferencesView: View {
     }
 }
 
+// MARK: - Row
+
 private struct MappingRowView: View {
     @ObservedObject private var store = ConfigStore.shared
     let mapping: KeyMapping
 
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 12) {
+            // Trigger badge — keyboard shortcut style
+            Text(mapping.trigger.displayString)
+                .font(.system(.body, design: .monospaced).weight(.medium))
+                .foregroundStyle(mapping.enabled ? Color.primary : Color.secondary)
+                .padding(.horizontal, 9)
+                .padding(.vertical, 4)
+                .background(keyBadgeBackground)
+                .frame(minWidth: 52, alignment: .center)
+
+            // Name + action subtitle
+            VStack(alignment: .leading, spacing: 2) {
+                Text(mapping.name)
+                    .font(.body)
+                    .foregroundStyle(mapping.enabled ? Color.primary : Color.secondary)
+
+                Text(mapping.action.displayString)
+                    .font(.caption)
+                    .foregroundStyle(Color.secondary)
+            }
+
+            Spacer(minLength: 8)
+
+            // App scope badge
+            conditionBadge
+
+            // Toggle
             Toggle("", isOn: enabledBinding)
                 .labelsHidden()
                 .toggleStyle(.switch)
                 .controlSize(.small)
-
-            VStack(alignment: .leading, spacing: 3) {
-                Text(mapping.name)
-                    .fontWeight(.medium)
-
-                HStack(spacing: 6) {
-                    Text(mapping.trigger.displayString)
-                        .font(.system(.caption, design: .monospaced))
-                        .padding(.horizontal, 5)
-                        .padding(.vertical, 2)
-                        .background(Color.secondary.opacity(0.15))
-                        .clipShape(RoundedRectangle(cornerRadius: 4))
-
-                    Text(mapping.action.displayString)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-
-                    if case .only(let ids) = mapping.condition, !ids.isEmpty {
-                        Text("· \(ids.count) 个应用")
-                            .font(.caption)
-                            .foregroundStyle(.tertiary)
-                    }
-                }
-            }
-            Spacer()
         }
-        .padding(.vertical, 3)
-        .opacity(mapping.enabled ? 1 : 0.5)
+        .padding(.vertical, 9)
+        .opacity(mapping.enabled ? 1 : 0.55)
+    }
+
+    private var keyBadgeBackground: some View {
+        RoundedRectangle(cornerRadius: 6)
+            .fill(Color(NSColor.textBackgroundColor))
+            .shadow(color: .black.opacity(0.1), radius: 1.5, x: 0, y: 1)
+            .overlay(
+                RoundedRectangle(cornerRadius: 6)
+                    .strokeBorder(Color(NSColor.separatorColor), lineWidth: 0.5)
+            )
+    }
+
+    @ViewBuilder
+    private var conditionBadge: some View {
+        switch mapping.condition {
+        case .all:
+            Text("所有应用")
+                .font(.caption)
+                .foregroundStyle(Color.secondary)
+        case .only(let ids) where ids.isEmpty:
+            Text("无应用")
+                .font(.caption)
+                .foregroundStyle(Color.secondary)
+        case .only(let ids):
+            Text("\(ids.count) 个应用")
+                .font(.caption)
+                .foregroundStyle(Color(NSColor.controlAccentColor))
+                .padding(.horizontal, 8)
+                .padding(.vertical, 3)
+                .background(
+                    Capsule()
+                        .fill(Color(NSColor.controlAccentColor).opacity(0.12))
+                )
+        }
     }
 
     private var enabledBinding: Binding<Bool> {
