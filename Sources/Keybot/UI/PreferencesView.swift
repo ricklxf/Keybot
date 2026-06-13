@@ -3,9 +3,7 @@ import SwiftUI
 struct PreferencesView: View {
     @ObservedObject private var store = ConfigStore.shared
     @State private var selectedID: UUID?
-    @State private var showingEdit = false
     @State private var editingMapping: KeyMapping?
-    @State private var isAddingNew = false
     @State private var showingResetAlert = false
 
     var body: some View {
@@ -14,16 +12,16 @@ struct PreferencesView: View {
             bottomBar
         }
         .frame(minWidth: 620, minHeight: 440)
-        .sheet(isPresented: $showingEdit) {
-            if let m = editingMapping {
-                MappingEditView(mapping: m) { saved in
-                    if isAddingNew {
-                        store.mappings.append(saved)
-                        selectedID = saved.id
-                    } else if let idx = store.mappings.firstIndex(where: { $0.id == saved.id }) {
+        // sheet(item:) 只在 item 非 nil 时弹出，彻底避免空白框
+        .sheet(item: $editingMapping) { m in
+            MappingEditView(mapping: m) { saved in
+                if store.mappings.contains(where: { $0.id == saved.id }) {
+                    if let idx = store.mappings.firstIndex(where: { $0.id == saved.id }) {
                         store.mappings[idx] = saved
                     }
-                    isAddingNew = false
+                } else {
+                    store.mappings.append(saved)
+                    selectedID = saved.id
                 }
             }
         }
@@ -121,13 +119,12 @@ struct PreferencesView: View {
     // MARK: - Actions
 
     private func addNew() {
-        isAddingNew = true
+        // 新 UUID 不在 store 里，save 回调会走 append 分支
         editingMapping = KeyMapping(
             name: "New Rule",
             trigger: KeyTrigger(keyCode: 0, modifiers: [.control]),
             action: .remap(keyCode: 0, modifiers: [.command])
         )
-        showingEdit = true
     }
 
     private func editSelected() {
@@ -136,9 +133,7 @@ struct PreferencesView: View {
     }
 
     private func beginEdit(_ m: KeyMapping) {
-        isAddingNew = false
         editingMapping = m
-        showingEdit = true
     }
 
     private func deleteSelected() {
