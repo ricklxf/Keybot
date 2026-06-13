@@ -38,11 +38,12 @@ openssl req -new -x509 -days 3650 \
 openssl pkcs12 -export \
     -in "$TMP/cert.pem" -inkey "$TMP/key.pem" \
     -out "$TMP/cert.p12" -name "$CERT_NAME" \
-    -passout pass: 2>/dev/null
+    -passout pass:keybot \
+    -keypbe PBE-SHA1-3DES -certpbe PBE-SHA1-3DES -macalg SHA1 2>/dev/null
 
 echo "▶ 导入到钥匙串（会弹窗要求输入登录密码）..."
 security import "$TMP/cert.p12" \
-    -k "$KEYCHAIN" -P "" \
+    -k "$KEYCHAIN" -P "keybot" \
     -T /usr/bin/codesign -T /usr/bin/security
 
 echo ""
