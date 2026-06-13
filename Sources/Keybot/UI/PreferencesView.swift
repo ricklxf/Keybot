@@ -43,12 +43,16 @@ struct PreferencesView: View {
                 MappingRowView(mapping: mapping, isSelected: selectedID == mapping.id)
                     .tag(mapping.id)
                     .listRowInsets(EdgeInsets(top: 0, leading: 12, bottom: 0, trailing: 12))
-                    .simultaneousGesture(TapGesture(count: 2).onEnded { beginEdit(mapping) })
             }
             .onMove { store.mappings.move(fromOffsets: $0, toOffset: $1) }
             .onDelete { store.mappings.remove(atOffsets: $0) }
         }
         .listStyle(.inset(alternatesRowBackgrounds: true))
+        .onDoubleClick {
+            if let id = selectedID, let m = store.mappings.first(where: { $0.id == id }) {
+                beginEdit(m)
+            }
+        }
         .contextMenu(forSelectionType: UUID.self, menu: { ids in
             if let id = ids.first, let m = store.mappings.first(where: { $0.id == id }) {
                 Button("Edit…") { beginEdit(m) }
