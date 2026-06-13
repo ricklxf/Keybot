@@ -40,10 +40,10 @@ struct PreferencesView: View {
     private var mappingList: some View {
         List(selection: $selectedID) {
             ForEach(store.mappings) { mapping in
-                MappingRowView(mapping: mapping)
+                MappingRowView(mapping: mapping, isSelected: selectedID == mapping.id)
                     .tag(mapping.id)
                     .listRowInsets(EdgeInsets(top: 0, leading: 12, bottom: 0, trailing: 12))
-                    .onTapGesture(count: 2) { beginEdit(mapping) }
+                    .simultaneousGesture(TapGesture(count: 2).onEnded { beginEdit(mapping) })
             }
             .onMove { store.mappings.move(fromOffsets: $0, toOffset: $1) }
             .onDelete { store.mappings.remove(atOffsets: $0) }
@@ -149,16 +149,17 @@ struct PreferencesView: View {
 private struct MappingRowView: View {
     @ObservedObject private var store = ConfigStore.shared
     let mapping: KeyMapping
+    let isSelected: Bool
 
     var body: some View {
         HStack(spacing: 12) {
             // Trigger badge — keyboard shortcut style
             Text(mapping.trigger.displayString)
                 .font(.system(.body, design: .monospaced).weight(.medium))
-                .foregroundStyle(mapping.enabled ? Color.primary : Color.secondary)
+                .foregroundStyle(isSelected ? Color.white : (mapping.enabled ? Color.primary : Color.secondary))
                 .padding(.horizontal, 9)
                 .padding(.vertical, 4)
-                .background(keyBadgeBackground)
+                .background { badgeBackground }
                 .frame(minWidth: 52, alignment: .center)
 
             // Name + action subtitle
@@ -184,17 +185,28 @@ private struct MappingRowView: View {
                 .controlSize(.small)
         }
         .padding(.vertical, 9)
+        .contentShape(Rectangle())
         .opacity(mapping.enabled ? 1 : 0.55)
     }
 
-    private var keyBadgeBackground: some View {
-        RoundedRectangle(cornerRadius: 6)
-            .fill(Color(NSColor.textBackgroundColor))
-            .shadow(color: .black.opacity(0.1), radius: 1.5, x: 0, y: 1)
-            .overlay(
-                RoundedRectangle(cornerRadius: 6)
-                    .strokeBorder(Color(NSColor.separatorColor), lineWidth: 0.5)
-            )
+    @ViewBuilder
+    private var badgeBackground: some View {
+        if isSelected {
+            RoundedRectangle(cornerRadius: 6)
+                .fill(Color.white.opacity(0.2))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 6)
+                        .strokeBorder(Color.white.opacity(0.35), lineWidth: 0.5)
+                )
+        } else {
+            RoundedRectangle(cornerRadius: 6)
+                .fill(Color(NSColor.textBackgroundColor))
+                .shadow(color: .black.opacity(0.1), radius: 1.5, x: 0, y: 1)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 6)
+                        .strokeBorder(Color(NSColor.separatorColor), lineWidth: 0.5)
+                )
+        }
     }
 
     @ViewBuilder
