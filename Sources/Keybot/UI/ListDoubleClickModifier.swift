@@ -9,7 +9,6 @@ extension View {
 
 private struct DoubleClickModifier: ViewModifier {
     let action: () -> Void
-
     func body(content: Content) -> some View {
         content.background(DoubleClickHelper(action: action))
     }
@@ -18,42 +17,38 @@ private struct DoubleClickModifier: ViewModifier {
 private struct DoubleClickHelper: NSViewRepresentable {
     let action: () -> Void
 
+    // SwiftUI manages exactly one Coordinator per view instance
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
     func makeNSView(context: Context) -> NSView {
         let v = NSView()
-        // Defer until the view is in the hierarchy so we can walk up to NSTableView
-        DispatchQueue.main.async { wireUp(view: v) }
+        context.coordinator.action = action
+        DispatchQueue.main.async {
+            var candidate: NSView? = v.superview
+            while let cur = candidate {
+                if let table = cur as? NSTableView {
+                    table.doubleAction = #selector(Coordinator.doubleClicked(_:))
+                    table.target = context.coordinator
+                    // Retain coordinator so it outlives this helper view
+                    objc_setAssociatedObject(table, &associatedKey,
+                                            context.coordinator, .OBJC_ASSOCIATION_RETAIN)
+                    return
+                }
+                candidate = cur.superview
+            }
+        }
         return v
     }
 
     func updateNSView(_ nsView: NSView, context: Context) {
+        // Keep the coordinator's action up to date (e.g. when selectedID changes)
         context.coordinator.action = action
     }
 
-    func makeCoordinator() -> Coordinator { Coordinator(action: action) }
-
-    private func wireUp(view: NSView) {
-        var candidate: NSView? = view.superview
-        while let v = candidate {
-            if let table = v as? NSTableView {
-                // Only wire once
-                if table.doubleAction != #selector(Coordinator.doubleClicked(_:)) {
-                    table.doubleAction = #selector(Coordinator.doubleClicked(_:))
-                    table.target = makeCoordinator()
-                    // Store coordinator on the table so it isn't released
-                    objc_setAssociatedObject(table, &coordinatorKey, makeCoordinator(), .OBJC_ASSOCIATION_RETAIN)
-                }
-                return
-            }
-            candidate = v.superview
-        }
-    }
-
     final class Coordinator: NSObject {
-        var action: () -> Void
-        init(action: @escaping () -> Void) { self.action = action }
-
-        @objc func doubleClicked(_ sender: Any?) { action() }
+        var action: (() -> Void)?
+        @objc func doubleClicked(_ sender: Any?) { action?() }
     }
 }
 
-private var coordinatorKey: UInt8 = 0
+private var associatedKey: UInt8 = 0
