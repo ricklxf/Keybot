@@ -1,35 +1,36 @@
 # Keybot
 
-用 CGEventTap 实现的 macOS 键位映射工具，替代 Karabiner，解决两个痛点：
-- **Karabiner 卡 Ctrl**：CGEventTap 直接在事件流里修改 modifier flags，没有虚拟 HID 驱动层的 stuck key 问题
-- **远程桌面不生效**：CGEventTap 运行在用户 GUI session 里，Screen Sharing / VNC 连入的键盘事件同样会经过它
+A macOS keyboard remapping tool built with CGEventTap, designed as a drop-in replacement for Karabiner. Solves two pain points:
 
-## 偏好设置
+- **Karabiner's stuck Ctrl key** — CGEventTap modifies modifier flags directly in the event stream, with no virtual HID driver layer that can get stuck
+- **Karabiner doesn't work in remote desktop** — CGEventTap runs in the user's GUI session, so keyboard events from Screen Sharing / VNC pass through it just the same
 
-菜单栏图标 → **偏好设置…**（或 `Cmd+,`）打开配置窗口，可自由增删改规则：
+## Preferences
 
-- **触发按键**：点击录制框，按下任意按键组合自动识别
-- **操作**：重映射到另一个键，或执行「锁屏 + 休眠」
-- **生效范围**：所有应用，或指定 Bundle ID 列表
-- 拖拽调整规则优先级，开关按钮单独禁用某条规则
+Click the menu bar icon → **Preferences…** (or `Cmd+,`) to open the configuration window.
 
-配置自动持久化到 `~/Library/Application Support/Keybot/config.json`，多台 Mac 同步只需 `git pull && ./build.sh`。
+- **Trigger key** — click the recorder field and press any key combination
+- **Action** — remap to another key, or trigger Lock & Sleep
+- **Scope** — all apps, or a specific list of Bundle IDs
+- Drag rows to reorder rule priority; toggle individual rules on/off
 
-## 默认映射规则
+Config is persisted to `~/Library/Application Support/Keybot/config.json`. To sync across Macs: `git pull && ./build.sh`.
 
-| 触发 | 效果 | 范围 |
-|------|------|------|
-| Ctrl + C/V/X/Z/A/S/F/P | → Cmd + 同键 | 全局 |
-| Ctrl + 鼠标左键 | → Cmd + 鼠标左键 | 全局（始终生效） |
-| ESC | → Cmd + W（关闭窗口） | 仅访达、微信、QQ |
-| F5 | → Cmd + R（刷新） | 仅 Edge |
-| Ctrl + L | → 锁屏 + 1 秒后休眠 | 全局 |
+## Default Mappings
 
-> **注意**：Terminal 里 Ctrl+C 也会被映射为 Cmd+C（复制）。发送 SIGINT 请改用 `kill` 命令，或在偏好设置里为 Terminal 的 Bundle ID 禁用该规则。
+| Trigger | Action | Scope |
+|---------|--------|-------|
+| Ctrl + C/V/X/Z/A/S/F/P | → Cmd + same key | All apps |
+| Ctrl + Left Click | → Cmd + Left Click | All apps (always on) |
+| ESC | → Cmd+W (close window) | Finder, WeChat, QQ only |
+| F5 | → Cmd+R (refresh) | Edge only |
+| Ctrl + L | → Lock screen + sleep after 1s | All apps |
 
-## 构建 & 安装
+> **Note:** In Terminal, Ctrl+C is also remapped to Cmd+C (copy). To send SIGINT, use `kill` instead, or add `com.apple.Terminal` as a scoped exclusion in Preferences.
 
-需要 Xcode Command Line Tools（`xcode-select --install`）。
+## Build & Install
+
+Requires Xcode Command Line Tools (`xcode-select --install`).
 
 ```bash
 git clone https://github.com/ricklxf/Keybot.git
@@ -37,27 +38,53 @@ cd Keybot
 ./build.sh
 ```
 
-首次运行后：**系统设置 → 隐私与安全性 → 辅助功能** → 开启 Keybot。
+On first launch: **System Settings → Privacy & Security → Accessibility** → enable Keybot.
 
-应用会自动检测权限并启动事件监听。菜单栏出现键盘图标即表示运行中。
+The app polls for permission and starts automatically once granted. A keyboard icon in the menu bar means it's running.
 
-## 开机自启
+## Launch at Login
 
-点击菜单栏图标 → **开机自启**，会在 `~/Library/LaunchAgents/` 写入 LaunchAgent。
+Menu bar icon → **Launch at Login** — writes a LaunchAgent to `~/Library/LaunchAgents/`.
 
-## 远程桌面说明
+## Code Signing
 
-- **别人连入你的 Mac**（Screen Sharing / VNC）：映射正常生效，因为 CGEventTap 跑在本地 session
-- **你从 Mac 连出去到 Windows**（Microsoft Remote Desktop 等）：大多数远程桌面客户端会把 Mac 的 Cmd 键映射为 Windows 的 Ctrl，所以 Ctrl+C → Cmd+C → 客户端 → Windows Ctrl+C，符合预期
+By default, `build.sh` falls back to ad-hoc signing, which requires re-granting Accessibility permission after every build. Run this once to fix it permanently:
 
-## 技术原理
+```bash
+bash scripts/create_cert.sh
+```
+
+This creates a self-signed "Keybot" certificate in your login keychain. Subsequent builds use it automatically — no repeated auth prompts.
+
+## Remote Desktop
+
+- **Someone connects into your Mac** (Screen Sharing / VNC) — remapping works normally, CGEventTap runs in the local session
+- **You connect out to Windows** (Microsoft Remote Desktop etc.) — most clients map Mac's Cmd to Windows Ctrl, so Ctrl+C → Cmd+C → client → Windows Ctrl+C, which is the expected behavior
+
+## How It Works
 
 ```
-键盘物理按键
+Physical keypress
     ↓
 CGEventTap (.cgSessionEventTap, .headInsertEventTap)
-    ↓  修改 event.flags：.maskControl → .maskCommand
-应用程序收到 Cmd+C
+    ↓  swap event.flags: .maskControl → .maskCommand
+App receives Cmd+C
 ```
 
-与 Karabiner 的区别：Karabiner 创建虚拟 HID 设备，通过内核驱动路由所有输入，驱动层状态机出错时会出现 modifier stuck。Keybot 在用户态直接改事件，不涉及驱动状态，不会 stuck。
+Karabiner installs a virtual HID device and routes all input through a kernel driver; when the driver's state machine goes wrong, modifiers get stuck. Keybot modifies events in user space with no driver state involved — no stuck keys.
+
+## Troubleshooting
+
+**`git push` hangs or fails with "Connection closed by UNKNOWN port 65535"**
+Add `ConnectTimeout 10` to the GitHub entry in `~/.ssh/config`:
+```
+Host github.com
+    ProxyCommand connect -S 127.0.0.1:6153 %h %p
+    ConnectTimeout 10
+```
+
+**App icon doesn't appear in Finder after install**
+`build.sh` already runs `lsregister -kill` and `killall Dock`. If it still doesn't show, log out and back in.
+
+**Nested bundle on other Mac (`/Applications/Keybot.app/Keybot.app/`)**
+Caused by `cp -r src dst` when dst already exists. `build.sh` does `rm -rf "$INSTALL"` before copying to prevent this.
