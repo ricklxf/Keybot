@@ -16,6 +16,8 @@
     <string>APPL</string>
     <key>NSPrincipalClass</key>
     <string>NSApplication</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
     <!-- 隐藏 Dock 图标，仅显示在菜单栏 -->
     <key>LSUIElement</key>
     <true/>

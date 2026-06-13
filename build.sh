@@ -11,8 +11,10 @@ swift build -c release
 echo "▶ 打包 .app..."
 rm -rf "$BUNDLE"
 mkdir -p "$BUNDLE/Contents/MacOS"
-cp "$OUT/$APP"          "$BUNDLE/Contents/MacOS/$APP"
-cp "Resources/Info.plist" "$BUNDLE/Contents/Info.plist"
+mkdir -p "$BUNDLE/Contents/Resources"
+cp "$OUT/$APP"              "$BUNDLE/Contents/MacOS/$APP"
+cp "Resources/Info.plist"  "$BUNDLE/Contents/Info.plist"
+cp "Resources/AppIcon.icns" "$BUNDLE/Contents/Resources/AppIcon.icns"
 
 echo "▶ Ad-hoc 签名..."
 codesign --force --sign - "$BUNDLE"
