@@ -140,8 +140,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             </array>
             <key>RunAtLoad</key>
             <true/>
-            <key>KeepAlive</key>
-            <true/>
         </dict>
         </plist>
         """
