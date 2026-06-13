@@ -2,7 +2,7 @@
 # 一次性运行：在本地钥匙串里创建 Keybot 专用代码签名证书
 set -e
 
-CERT_NAME="Keybot Dev"
+CERT_NAME="Keybot"
 KEYCHAIN="$HOME/Library/Keychains/login.keychain-db"
 
 if security find-identity -p codesigning -v 2>/dev/null | grep -q "\"$CERT_NAME\""; then
@@ -22,7 +22,7 @@ distinguished_name = dn
 x509_extensions    = ext
 prompt             = no
 [dn]
-CN = Keybot Dev
+CN = Keybot
 [ext]
 basicConstraints       = critical,CA:false
 keyUsage               = critical,digitalSignature
@@ -54,7 +54,7 @@ security add-trusted-cert -r trustAsRoot -p codeSign \
     echo ""
     echo "⚠️  自动设置信任失败，请手动完成（只需一次）："
     echo "   1. 打开「钥匙串访问」"
-    echo "   2. 找到「Keybot Dev」证书，双击"
+    echo "   2. 找到「Keybot」证书，双击"
     echo "   3. 展开「信任」→「代码签名」→ 改为「始终信任」"
     echo "   4. 关闭窗口，输入密码确认"
     open /System/Applications/Utilities/Keychain\ Access.app

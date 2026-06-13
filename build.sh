@@ -17,7 +17,7 @@ cp "Resources/Info.plist"  "$BUNDLE/Contents/Info.plist"
 cp "Resources/AppIcon.icns" "$BUNDLE/Contents/Resources/AppIcon.icns"
 
 echo "▶ 签名..."
-CERT="Keybot Dev"
+CERT="Keybot"
 if security find-identity -p codesigning -v 2>/dev/null | grep -q "\"$CERT\""; then
     codesign --force --sign "$CERT" "$BUNDLE"
 else
