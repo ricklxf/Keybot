@@ -1,6 +1,6 @@
 # Keybot
 
-[🇺🇸 English](README_EN.md)
+🇨🇳 **CN** | [🇺🇸 EN](README_EN.md)
 
 用 CGEventTap 实现的 macOS 键位映射工具，替代 Karabiner，解决两个痛点：
 

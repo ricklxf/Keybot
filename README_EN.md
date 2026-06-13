@@ -1,6 +1,6 @@
 # Keybot
 
-[🇨🇳 中文](README.md)
+[🇨🇳 CN](README.md) | 🇺🇸 **EN**
 
 A macOS keyboard remapping tool built with CGEventTap, designed as a drop-in replacement for Karabiner. Solves two pain points:
 
