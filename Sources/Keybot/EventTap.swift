@@ -1,7 +1,8 @@
 import Cocoa
 import ApplicationServices
 
-// 必须是全局函数才能作为 C 函数指针传入 CGEvent.tapCreate
+private let syntheticMarker: Int64 = 0x4B455942
+
 private func tapCallback(
     proxy: CGEventTapProxy,
     type: CGEventType,
@@ -16,9 +17,8 @@ final class EventTap {
 
     private var tap: CFMachPort?
     private(set) var isRunning = false
-
-    // 缓存当前前台 app bundle ID，避免每次事件都调用 NSWorkspace
     var frontBundleID = ""
+    var isCapturingKey = false
 
     @discardableResult
     func start() -> Bool {
@@ -62,62 +62,38 @@ final class EventTap {
 
     func handle(type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
         switch type {
-        case .keyDown, .keyUp:
-            return handleKey(type: type, event: event)
-        case .leftMouseDown, .leftMouseUp:
-            return handleMouse(event: event)
-        default:
-            return Unmanaged.passRetained(event)
+        case .keyDown, .keyUp:   return handleKey(type: type, event: event)
+        case .leftMouseDown, .leftMouseUp: return handleMouse(event: event)
+        default: return Unmanaged.passRetained(event)
         }
     }
 
     private func handleKey(type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
+        if event.getIntegerValueField(.eventSourceUserData) == syntheticMarker {
+            return Unmanaged.passRetained(event)
+        }
+        if isCapturingKey {
+            return Unmanaged.passRetained(event)
+        }
+
         let flags = event.flags
         let keyCode = CGKeyCode(event.getIntegerValueField(.keyboardEventKeycode))
         let isDown = type == .keyDown
 
-        // Ctrl+letter → Cmd+letter
-        // 只处理"仅按下 Ctrl"的情况，Ctrl+Shift / Ctrl+Opt 等组合保持原样
-        if flags.contains(.maskControl),
-           !flags.contains(.maskCommand),
-           !flags.contains(.maskAlternate),
-           Keys.ctrlToCmd.contains(keyCode)
-        {
-            var newFlags = flags
-            newFlags.remove(.maskControl)
-            newFlags.insert(.maskCommand)
-            event.flags = newFlags
-            return Unmanaged.passRetained(event)
-        }
+        for mapping in ConfigStore.shared.enabledMappings {
+            guard mapping.trigger.matches(keyCode: keyCode, flags: flags) else { continue }
+            guard mapping.condition.matches(bundleID: frontBundleID) else { continue }
 
-        // Ctrl+L → 锁屏 + 休眠（1 秒后）
-        let onlyCtrl = CGEventFlags.maskControl
-        if keyCode == Keys.l,
-           flags.intersection([.maskCommand, .maskControl, .maskAlternate, .maskShift]) == onlyCtrl
-        {
-            if isDown { lockAndSleep() }
-            return nil // 同时消耗 keyDown 和 keyUp
-        }
-
-        // ESC → Cmd+W（仅限 Finder / 微信 / QQ）
-        if keyCode == Keys.escape,
-           flags.intersection([.maskCommand, .maskControl, .maskAlternate, .maskShift]) == []
-        {
-            let targets: Set<String> = [
-                "com.apple.finder",
-                "com.tencent.xinWeChat",
-                "com.tencent.qq"
-            ]
-            if targets.contains(frontBundleID) {
-                postKey(Keys.w, modifiers: .maskCommand, isDown: isDown)
+            switch mapping.action {
+            case .lockAndSleep:
+                if isDown { lockAndSleep() }
+                return nil
+            case .remap(let targetKC, let targetMods):
+                var f = CGEventFlags()
+                for m in targetMods { f.insert(m.flag) }
+                postKey(CGKeyCode(targetKC), modifiers: f, isDown: isDown)
                 return nil
             }
-        }
-
-        // F5 → Cmd+R（仅限 Edge）
-        if keyCode == Keys.f5, frontBundleID == "com.microsoft.edgemac" {
-            postKey(Keys.r, modifiers: .maskCommand, isDown: isDown)
-            return nil
         }
 
         return Unmanaged.passRetained(event)
@@ -137,14 +113,13 @@ final class EventTap {
     private func postKey(_ keyCode: CGKeyCode, modifiers: CGEventFlags, isDown: Bool) {
         guard let e = CGEvent(keyboardEventSource: nil, virtualKey: keyCode, keyDown: isDown) else { return }
         e.flags = modifiers
+        e.setIntegerValueField(.eventSourceUserData, value: syntheticMarker)
         e.post(tap: .cgSessionEventTap)
     }
 
     private func lockAndSleep() {
-        // Ctrl+Cmd+Q = macOS 锁屏快捷键
-        postKey(Keys.q, modifiers: [.maskControl, .maskCommand], isDown: true)
-        postKey(Keys.q, modifiers: [.maskControl, .maskCommand], isDown: false)
-
+        postKey(12, modifiers: [.maskControl, .maskCommand], isDown: true)
+        postKey(12, modifiers: [.maskControl, .maskCommand], isDown: false)
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
             let task = Process()
             task.executableURL = URL(fileURLWithPath: "/usr/bin/pmset")

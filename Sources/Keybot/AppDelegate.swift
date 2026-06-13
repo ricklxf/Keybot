@@ -6,7 +6,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var permissionTimer: Timer?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        // 已有实例在运行则直接退出，避免重复图标
         let running = NSRunningApplication.runningApplications(withBundleIdentifier: "com.keybot.app")
         if running.count > 1 {
             NSApp.terminate(nil)
@@ -24,11 +23,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         if AXIsProcessTrusted() {
             EventTap.shared.start()
         } else {
-            // 触发系统权限弹窗
             AXIsProcessTrustedWithOptions(
                 [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
             )
-            // 轮询直到用户授权
             permissionTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] timer in
                 if AXIsProcessTrusted() {
                     timer.invalidate()
@@ -56,33 +53,27 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let statusTitle = EventTap.shared.isRunning
             ? "✅ 运行中 · v\(appVersion)"
             : "⚠️ 需要辅助功能权限 · v\(appVersion)"
-        let statusItem = NSMenuItem(title: statusTitle, action: nil, keyEquivalent: "")
-        menu.addItem(statusItem)
+        menu.addItem(NSMenuItem(title: statusTitle, action: nil, keyEquivalent: ""))
 
         if !EventTap.shared.isRunning {
-            let grantItem = NSMenuItem(title: "  前往系统设置授权…", action: #selector(openAccessibilityPrefs), keyEquivalent: "")
-            grantItem.target = self
-            menu.addItem(grantItem)
+            let item = NSMenuItem(title: "  前往系统设置授权…", action: #selector(openAccessibilityPrefs), keyEquivalent: "")
+            item.target = self
+            menu.addItem(item)
         }
 
         menu.addItem(.separator())
 
-        let mappingsHeader = NSMenuItem(title: "当前映射：", action: nil, keyEquivalent: "")
-        mappingsHeader.isEnabled = false
-        menu.addItem(mappingsHeader)
+        let prefsItem = NSMenuItem(title: "偏好设置…", action: #selector(openPreferences), keyEquivalent: ",")
+        prefsItem.target = self
+        menu.addItem(prefsItem)
 
-        let rules = [
-            "Ctrl + C/V/X/Z/A/S/F/P  →  Cmd",
-            "Ctrl + 鼠标点击  →  Cmd + 点击",
-            "ESC  →  Cmd+W（访达/微信/QQ）",
-            "F5  →  Cmd+R（Edge）",
-            "Ctrl + L  →  锁屏 + 休眠",
-        ]
-        for rule in rules {
-            let item = NSMenuItem(title: "  \(rule)", action: nil, keyEquivalent: "")
-            item.isEnabled = false
-            menu.addItem(item)
-        }
+        menu.addItem(.separator())
+
+        let enabledCount = ConfigStore.shared.enabledMappings.count
+        let totalCount = ConfigStore.shared.mappings.count
+        let infoItem = NSMenuItem(title: "  \(enabledCount) / \(totalCount) 条规则已启用", action: nil, keyEquivalent: "")
+        infoItem.isEnabled = false
+        menu.addItem(infoItem)
 
         menu.addItem(.separator())
 
@@ -100,6 +91,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     // MARK: - Actions
+
+    @objc private func openPreferences() {
+        PreferencesWindowController.shared.show()
+    }
 
     @objc private func openAccessibilityPrefs() {
         NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!)
