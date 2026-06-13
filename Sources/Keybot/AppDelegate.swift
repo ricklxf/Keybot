@@ -51,19 +51,19 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let menu = NSMenu()
 
         let statusTitle = EventTap.shared.isRunning
-            ? "✅ 运行中 · v\(appVersion)"
-            : "⚠️ 需要辅助功能权限 · v\(appVersion)"
+            ? "✅ Running · v\(appVersion)"
+            : "⚠️ Accessibility permission required · v\(appVersion)"
         menu.addItem(NSMenuItem(title: statusTitle, action: nil, keyEquivalent: ""))
 
         if !EventTap.shared.isRunning {
-            let item = NSMenuItem(title: "  前往系统设置授权…", action: #selector(openAccessibilityPrefs), keyEquivalent: "")
+            let item = NSMenuItem(title: "  Open Accessibility Settings…", action: #selector(openAccessibilityPrefs), keyEquivalent: "")
             item.target = self
             menu.addItem(item)
         }
 
         menu.addItem(.separator())
 
-        let prefsItem = NSMenuItem(title: "偏好设置…", action: #selector(openPreferences), keyEquivalent: ",")
+        let prefsItem = NSMenuItem(title: "Preferences…", action: #selector(openPreferences), keyEquivalent: ",")
         prefsItem.target = self
         menu.addItem(prefsItem)
 
@@ -71,20 +71,20 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         let enabledCount = ConfigStore.shared.enabledMappings.count
         let totalCount = ConfigStore.shared.mappings.count
-        let infoItem = NSMenuItem(title: "  \(enabledCount) / \(totalCount) 条规则已启用", action: nil, keyEquivalent: "")
+        let infoItem = NSMenuItem(title: "  \(enabledCount) / \(totalCount) rules enabled", action: nil, keyEquivalent: "")
         infoItem.isEnabled = false
         menu.addItem(infoItem)
 
         menu.addItem(.separator())
 
-        let loginItem = NSMenuItem(title: "开机自启", action: #selector(toggleLoginItem), keyEquivalent: "")
+        let loginItem = NSMenuItem(title: "Launch at Login", action: #selector(toggleLoginItem), keyEquivalent: "")
         loginItem.target = self
         loginItem.state = isLoginItemEnabled() ? .on : .off
         menu.addItem(loginItem)
 
         menu.addItem(.separator())
 
-        let quit = NSMenuItem(title: "退出 Keybot", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        let quit = NSMenuItem(title: "Quit Keybot", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         menu.addItem(quit)
 
         self.statusItem?.menu = menu

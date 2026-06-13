@@ -14,13 +14,13 @@ struct MappingEditView: View {
     @State private var bundleIDsText: String
 
     enum ActionType: String, CaseIterable {
-        case remap = "重映射按键"
-        case lockAndSleep = "锁屏 + 休眠"
+        case remap = "Remap Key"
+        case lockAndSleep = "Lock & Sleep"
     }
 
     enum ConditionType: String, CaseIterable {
-        case all = "所有应用"
-        case only = "指定应用"
+        case all = "All Apps"
+        case only = "Specific Apps"
     }
 
     init(mapping: KeyMapping, onSave: @escaping (KeyMapping) -> Void) {
@@ -64,7 +64,7 @@ struct MappingEditView: View {
                 Image(systemName: "keyboard")
                     .font(.title2)
                     .foregroundStyle(.secondary)
-                Text(name.isEmpty ? "新规则" : name)
+                Text(name.isEmpty ? "New Rule" : name)
                     .font(.headline)
                 Spacer()
             }
@@ -77,8 +77,8 @@ struct MappingEditView: View {
             ScrollView {
                 VStack(spacing: 16) {
                     // Name
-                    settingSection(title: "规则名称") {
-                        TextField("名称", text: $name)
+                    settingSection(title: "Rule Name") {
+                        TextField("Name", text: $name)
                             .textFieldStyle(.plain)
                             .font(.body)
                             .padding(.horizontal, 10)
@@ -92,12 +92,12 @@ struct MappingEditView: View {
                     }
 
                     // Trigger
-                    settingSection(title: "触发按键") {
+                    settingSection(title: "Trigger Key") {
                         KeyRecorderView(trigger: $trigger)
                     }
 
                     // Action
-                    settingSection(title: "执行操作") {
+                    settingSection(title: "Action") {
                         VStack(spacing: 8) {
                             Picker("", selection: $actionType) {
                                 ForEach(ActionType.allCases, id: \.self) {
@@ -114,7 +114,7 @@ struct MappingEditView: View {
                     }
 
                     // Condition
-                    settingSection(title: "生效范围") {
+                    settingSection(title: "Scope") {
                         VStack(spacing: 8) {
                             Picker("", selection: $conditionType) {
                                 ForEach(ConditionType.allCases, id: \.self) {
@@ -138,7 +138,7 @@ struct MappingEditView: View {
                                         )
 
                                     if bundleIDsText.isEmpty {
-                                        Text("每行一个 Bundle ID\n例：com.apple.finder")
+                                        Text("One Bundle ID per line\ne.g. com.apple.finder")
                                             .font(.system(.body, design: .monospaced))
                                             .foregroundStyle(Color(NSColor.placeholderTextColor))
                                             .padding(.horizontal, 10)
@@ -157,11 +157,11 @@ struct MappingEditView: View {
 
             // Buttons
             HStack {
-                Button("取消") { dismiss() }
+                Button("Cancel") { dismiss() }
                     .keyboardShortcut(.cancelAction)
                     .buttonStyle(.bordered)
                 Spacer()
-                Button("保存") { save() }
+                Button("Save") { save() }
                     .keyboardShortcut(.defaultAction)
                     .buttonStyle(.borderedProminent)
                     .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)

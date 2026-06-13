@@ -18,7 +18,7 @@ final class PreferencesWindowController {
             backing: .buffered,
             defer: false
         )
-        w.title = "Keybot 偏好设置"
+        w.title = "Keybot Preferences"
         w.titlebarAppearsTransparent = false
         w.toolbarStyle = .unified
         w.contentView = NSHostingView(rootView: PreferencesView())

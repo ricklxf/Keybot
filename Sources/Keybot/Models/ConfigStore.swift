@@ -57,20 +57,20 @@ final class ConfigStore: ObservableObject {
         }
 
         result.append(KeyMapping(
-            name: "Ctrl+L → 锁屏+休眠",
+            name: "Ctrl+L → Lock & Sleep",
             trigger: KeyTrigger(keyCode: 37, modifiers: [.control]),
             action: .lockAndSleep
         ))
 
         result.append(KeyMapping(
-            name: "ESC → Cmd+W（访达/微信/QQ）",
+            name: "ESC → Cmd+W (Finder/WeChat/QQ)",
             trigger: KeyTrigger(keyCode: 53, modifiers: []),
             action: .remap(keyCode: 13, modifiers: [.command]),
             condition: .only(["com.apple.finder", "com.tencent.xinWeChat", "com.tencent.qq"])
         ))
 
         result.append(KeyMapping(
-            name: "F5 → Cmd+R（Edge）",
+            name: "F5 → Cmd+R (Edge)",
             trigger: KeyTrigger(keyCode: 96, modifiers: []),
             action: .remap(keyCode: 15, modifiers: [.command]),
             condition: .only(["com.microsoft.edgemac"])

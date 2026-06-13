@@ -27,11 +27,11 @@ struct PreferencesView: View {
                 }
             }
         }
-        .alert("恢复默认设置？", isPresented: $showingResetAlert) {
-            Button("恢复", role: .destructive) { store.resetToDefaults() }
-            Button("取消", role: .cancel) {}
+        .alert("Restore Defaults?", isPresented: $showingResetAlert) {
+            Button("Restore", role: .destructive) { store.resetToDefaults() }
+            Button("Cancel", role: .cancel) {}
         } message: {
-            Text("将删除所有自定义规则，恢复为内置默认映射。")
+            Text("This will delete all custom rules and restore the built-in default mappings.")
         }
     }
 
@@ -51,9 +51,9 @@ struct PreferencesView: View {
         .listStyle(.inset(alternatesRowBackgrounds: true))
         .contextMenu(forSelectionType: UUID.self, menu: { ids in
             if let id = ids.first, let m = store.mappings.first(where: { $0.id == id }) {
-                Button("编辑…") { beginEdit(m) }
+                Button("Edit…") { beginEdit(m) }
                 Divider()
-                Button("删除", role: .destructive) {
+                Button("Delete", role: .destructive) {
                     store.mappings.removeAll { $0.id == id }
                     selectedID = nil
                 }
@@ -73,7 +73,7 @@ struct PreferencesView: View {
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.borderless)
-                .help("添加规则")
+                .help("Add rule")
 
                 Divider().frame(height: 14)
 
@@ -84,7 +84,7 @@ struct PreferencesView: View {
                 }
                 .buttonStyle(.borderless)
                 .disabled(selectedID == nil)
-                .help("删除选中规则")
+                .help("Delete selected rule")
             }
             .background(
                 RoundedRectangle(cornerRadius: 5)
@@ -100,11 +100,11 @@ struct PreferencesView: View {
             }
             .buttonStyle(.borderless)
             .disabled(selectedID == nil)
-            .help("编辑规则")
+            .help("Edit rule")
 
             Spacer()
 
-            Button("恢复默认") { showingResetAlert = true }
+            Button("Restore Defaults") { showingResetAlert = true }
                 .buttonStyle(.borderless)
                 .foregroundStyle(.secondary)
         }
@@ -119,7 +119,7 @@ struct PreferencesView: View {
     private func addNew() {
         isAddingNew = true
         editingMapping = KeyMapping(
-            name: "新规则",
+            name: "New Rule",
             trigger: KeyTrigger(keyCode: 0, modifiers: [.control]),
             action: .remap(keyCode: 0, modifiers: [.command])
         )
@@ -201,15 +201,15 @@ private struct MappingRowView: View {
     private var conditionBadge: some View {
         switch mapping.condition {
         case .all:
-            Text("所有应用")
+            Text("All Apps")
                 .font(.caption)
                 .foregroundStyle(Color.secondary)
         case .only(let ids) where ids.isEmpty:
-            Text("无应用")
+            Text("No Apps")
                 .font(.caption)
                 .foregroundStyle(Color.secondary)
         case .only(let ids):
-            Text("\(ids.count) 个应用")
+            Text("\(ids.count) app\(ids.count == 1 ? "" : "s")")
                 .font(.caption)
                 .foregroundStyle(Color(NSColor.controlAccentColor))
                 .padding(.horizontal, 8)

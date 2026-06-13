@@ -11,9 +11,9 @@ struct KeyRecorderView: NSViewRepresentable {
     }
 
     func updateNSView(_ nsView: KeyRecorderNSView, context: Context) {
-        nsView.setIdleDisplay(trigger.keyCode == 0 && trigger.modifiers.isEmpty
-            ? nil
-            : trigger.displayString)
+        nsView.setIdleDisplay(
+            trigger.keyCode == 0 && trigger.modifiers.isEmpty ? nil : trigger.displayString
+        )
     }
 }
 
@@ -23,7 +23,7 @@ final class KeyRecorderNSView: NSView {
     var onCapture: ((KeyTrigger) -> Void)?
     private(set) var isRecording = false
 
-    private let label = NSTextField(labelWithString: "点击录制…")
+    private let label = NSTextField(labelWithString: "Click to record…")
     private let clearBtn: NSButton = {
         let b = NSButton(title: "✕", target: nil, action: nil)
         b.isBordered = false
@@ -83,7 +83,7 @@ final class KeyRecorderNSView: NSView {
             label.textColor = .labelColor
             clearBtn.isHidden = false
         } else {
-            label.stringValue = "点击录制…"
+            label.stringValue = "Click to record…"
             label.textColor = .placeholderTextColor
             clearBtn.isHidden = true
         }
@@ -107,7 +107,7 @@ final class KeyRecorderNSView: NSView {
         guard !isRecording else { return }
         isRecording = true
         EventTap.shared.isCapturingKey = true
-        label.stringValue = "请按下按键组合…"
+        label.stringValue = "Press a key combination…"
         label.textColor = .secondaryLabelColor
         clearBtn.isHidden = true
         applyRecordingStyle()
@@ -145,7 +145,7 @@ final class KeyRecorderNSView: NSView {
     @objc private func clearTrigger() {
         stopRecording()
         let empty = KeyTrigger(keyCode: 0, modifiers: [])
-        label.stringValue = "点击录制…"
+        label.stringValue = "Click to record…"
         label.textColor = .placeholderTextColor
         clearBtn.isHidden = true
         onCapture?(empty)

@@ -83,7 +83,7 @@ enum MappingAction: Hashable {
             let ms = order.filter { mods.contains($0) }.map(\.symbol).joined()
             return "→ " + ms + (keyCodeNames[kc] ?? "Key(\(kc))")
         case .lockAndSleep:
-            return "→ 锁屏 + 休眠"
+            return "→ Lock & Sleep"
         }
     }
 }
@@ -129,8 +129,8 @@ enum AppCondition: Hashable {
 
     var displayString: String {
         switch self {
-        case .all: return "所有应用"
-        case .only(let ids): return ids.isEmpty ? "（无）" : ids.joined(separator: "\n")
+        case .all: return "All Apps"
+        case .only(let ids): return ids.isEmpty ? "(none)" : ids.joined(separator: "\n")
         }
     }
 }
