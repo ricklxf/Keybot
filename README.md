@@ -21,7 +21,7 @@
 需要 Xcode Command Line Tools（`xcode-select --install`）。
 
 ```bash
-git clone https://github.com/ricklxf90/Keybot.git
+git clone https://github.com/ricklxf/Keybot.git
 cd Keybot
 ./build.sh
 cp -r .build/Keybot.app /Applications/
