@@ -33,11 +33,6 @@ rm -rf "$INSTALL"
 cp -r "$BUNDLE" "$INSTALL"
 xattr -cr "$INSTALL"
 
-echo "▶ 刷新图标缓存..."
-/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister \
-    -kill -r -domain local -domain system -domain user 2>/dev/null || true
-killall Dock 2>/dev/null || true
-
 echo "▶ 启动..."
 sleep 1
 open "$INSTALL"
