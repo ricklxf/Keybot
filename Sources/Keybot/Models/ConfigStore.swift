@@ -15,7 +15,13 @@ final class ConfigStore: ObservableObject {
         let dir = support.appendingPathComponent("Keybot")
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         storePath = dir.appendingPathComponent("config.json")
-        mappings = Self.load(from: storePath) ?? Self.defaultMappings()
+        let loaded = Self.load(from: storePath) ?? Self.defaultMappings()
+        mappings = loaded
+        if !FileManager.default.fileExists(atPath: storePath.path) {
+            if let data = try? JSONEncoder().encode(loaded) {
+                try? data.write(to: storePath, options: .atomic)
+            }
+        }
     }
 
     var enabledMappings: [KeyMapping] {
