@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleExecutable</key>
+    <string>Keybot</string>
+    <key>CFBundleIdentifier</key>
+    <string>com.keybot.app</string>
+    <key>CFBundleName</key>
+    <string>Keybot</string>
+    <key>CFBundleVersion</key>
+    <string>1.0</string>
+    <key>CFBundleShortVersionString</key>
+    <string>1.0</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>NSPrincipalClass</key>
+    <string>NSApplication</string>
+    <!-- 隐藏 Dock 图标，仅显示在菜单栏 -->
+    <key>LSUIElement</key>
+    <true/>
+    <!-- 辅助功能权限说明文字（系统权限弹窗里显示） -->
+    <key>NSAccessibilityUsageDescription</key>
+    <string>Keybot 需要辅助功能权限来拦截并重映射全局键盘快捷键。</string>
+</dict>
+</plist>
