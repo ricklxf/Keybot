@@ -1,0 +1,16 @@
+#!/bin/bash
+VERSION_FILE="Sources/Keybot/Version.swift"
+
+# rebase / merge 中途跳过，不重复递增
+[ -f .git/MERGE_HEAD ] && exit 0
+[ -d .git/rebase-merge ] && exit 0
+
+[ -f "$VERSION_FILE" ] || exit 0
+
+current=$(grep 'let appVersion' "$VERSION_FILE" | sed 's/.*"\(.*\)".*/\1/')
+IFS='.' read -r major minor patch <<< "$current"
+new="${major}.${minor}.$((patch + 1))"
+
+sed -i '' "s/let appVersion = \"[^\"]*\"/let appVersion = \"${new}\"/" "$VERSION_FILE"
+git add "$VERSION_FILE"
+echo "  版本: ${current} → ${new}"

@@ -11,10 +11,11 @@ enum Keys {
     static let q: CGKeyCode = 12
     static let w: CGKeyCode = 13
     static let r: CGKeyCode = 15
+    static let p: CGKeyCode = 35
     static let l: CGKeyCode = 37
     static let escape: CGKeyCode = 53
     static let f5: CGKeyCode = 96
 
     // Ctrl → Cmd 全局映射的按键集合（只改 modifier，key code 不变）
-    static let ctrlToCmd: Set<CGKeyCode> = [c, v, x, z, a, s, f]
+    static let ctrlToCmd: Set<CGKeyCode> = [c, v, x, z, a, s, f, p]
 }

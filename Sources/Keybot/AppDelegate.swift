@@ -53,7 +53,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private func rebuildMenu() {
         let menu = NSMenu()
 
-        let statusTitle = EventTap.shared.isRunning ? "✅ 运行中" : "⚠️ 需要辅助功能权限"
+        let statusTitle = EventTap.shared.isRunning
+            ? "✅ 运行中 · v\(appVersion)"
+            : "⚠️ 需要辅助功能权限 · v\(appVersion)"
         let statusItem = NSMenuItem(title: statusTitle, action: nil, keyEquivalent: "")
         menu.addItem(statusItem)
 
@@ -70,7 +72,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(mappingsHeader)
 
         let rules = [
-            "Ctrl + C/V/X/Z/A/S/F  →  Cmd",
+            "Ctrl + C/V/X/Z/A/S/F/P  →  Cmd",
             "Ctrl + 鼠标点击  →  Cmd + 点击",
             "ESC  →  Cmd+W（访达/微信/QQ）",
             "F5  →  Cmd+R（Edge）",
