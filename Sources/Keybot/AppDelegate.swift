@@ -6,6 +6,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var permissionTimer: Timer?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // 已有实例在运行则直接退出，避免重复图标
+        let running = NSRunningApplication.runningApplications(withBundleIdentifier: "com.keybot.app")
+        if running.count > 1 {
+            NSApp.terminate(nil)
+            return
+        }
+
         NSApp.setActivationPolicy(.accessory)
         startWithPermissionCheck()
         buildStatusItem()
