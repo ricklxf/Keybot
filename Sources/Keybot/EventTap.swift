@@ -90,10 +90,10 @@ final class EventTap {
             return Unmanaged.passRetained(event)
         }
 
-        // Cmd+L → 锁屏 + 休眠（1 秒后）
-        let onlyCmd = CGEventFlags.maskCommand
+        // Ctrl+L → 锁屏 + 休眠（1 秒后）
+        let onlyCtrl = CGEventFlags.maskControl
         if keyCode == Keys.l,
-           flags.intersection([.maskCommand, .maskControl, .maskAlternate, .maskShift]) == onlyCmd
+           flags.intersection([.maskCommand, .maskControl, .maskAlternate, .maskShift]) == onlyCtrl
         {
             if isDown { lockAndSleep() }
             return nil // 同时消耗 keyDown 和 keyUp

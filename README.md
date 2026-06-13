@@ -12,7 +12,7 @@
 | Ctrl + 鼠标左键 | → Cmd + 鼠标左键 | 全局 |
 | ESC | → Cmd + W（关闭窗口） | 仅访达、微信、QQ |
 | F5 | → Cmd + R（刷新） | 仅 Edge |
-| Cmd + L | → 锁屏 + 1 秒后休眠 | 全局 |
+| Ctrl + L | → 锁屏 + 1 秒后休眠 | 全局 |
 
 > **注意**：Terminal 里 Ctrl+C 也会被映射为 Cmd+C（复制）。发送 SIGINT 请改用 `kill` 命令。
 

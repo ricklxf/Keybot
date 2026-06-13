@@ -74,7 +74,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             "Ctrl + 鼠标点击  →  Cmd + 点击",
             "ESC  →  Cmd+W（访达/微信/QQ）",
             "F5  →  Cmd+R（Edge）",
-            "Cmd + L  →  锁屏 + 休眠",
+            "Ctrl + L  →  锁屏 + 休眠",
         ]
         for rule in rules {
             let item = NSMenuItem(title: "  \(rule)", action: nil, keyEquivalent: "")
