@@ -29,6 +29,7 @@ fi
 
 echo "▶ 安装到 /Applications..."
 pkill "$APP" 2>/dev/null || true
+rm -rf "$INSTALL"
 cp -r "$BUNDLE" "$INSTALL"
 xattr -cr "$INSTALL"
 
