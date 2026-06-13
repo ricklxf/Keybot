@@ -4,6 +4,7 @@ set -e
 APP="Keybot"
 OUT=".build/release"
 BUNDLE=".build/${APP}.app"
+INSTALL="/Applications/${APP}.app"
 
 echo "▶ 编译..."
 swift build -c release
@@ -12,8 +13,8 @@ echo "▶ 打包 .app..."
 rm -rf "$BUNDLE"
 mkdir -p "$BUNDLE/Contents/MacOS"
 mkdir -p "$BUNDLE/Contents/Resources"
-cp "$OUT/$APP"              "$BUNDLE/Contents/MacOS/$APP"
-cp "Resources/Info.plist"  "$BUNDLE/Contents/Info.plist"
+cp "$OUT/$APP"               "$BUNDLE/Contents/MacOS/$APP"
+cp "Resources/Info.plist"   "$BUNDLE/Contents/Info.plist"
 cp "Resources/AppIcon.icns" "$BUNDLE/Contents/Resources/AppIcon.icns"
 
 echo "▶ 签名..."
@@ -26,10 +27,18 @@ else
     codesign --force --sign - "$BUNDLE"
 fi
 
+echo "▶ 安装到 /Applications..."
+pkill "$APP" 2>/dev/null || true
+cp -r "$BUNDLE" "$INSTALL"
+
+echo "▶ 刷新图标缓存..."
+/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister \
+    -kill -r -domain local -domain system -domain user 2>/dev/null || true
+killall Dock 2>/dev/null || true
+
+echo "▶ 启动..."
+sleep 1
+open "$INSTALL"
+
 echo ""
-echo "✅ 完成：$BUNDLE"
-echo ""
-echo "安装到 Applications："
-echo "  cp -r $BUNDLE /Applications/"
-echo ""
-echo "首次运行后需要在「系统设置 → 隐私与安全性 → 辅助功能」里授权 Keybot。"
+echo "✅ 完成 v$(grep 'let appVersion' Sources/Keybot/Version.swift | sed 's/.*"\(.*\)".*/\1/')"
