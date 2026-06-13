@@ -4,17 +4,28 @@
 - **Karabiner 卡 Ctrl**：CGEventTap 直接在事件流里修改 modifier flags，没有虚拟 HID 驱动层的 stuck key 问题
 - **远程桌面不生效**：CGEventTap 运行在用户 GUI session 里，Screen Sharing / VNC 连入的键盘事件同样会经过它
 
-## 映射规则
+## 偏好设置
+
+菜单栏图标 → **偏好设置…**（或 `Cmd+,`）打开配置窗口，可自由增删改规则：
+
+- **触发按键**：点击录制框，按下任意按键组合自动识别
+- **操作**：重映射到另一个键，或执行「锁屏 + 休眠」
+- **生效范围**：所有应用，或指定 Bundle ID 列表
+- 拖拽调整规则优先级，开关按钮单独禁用某条规则
+
+配置自动持久化到 `~/Library/Application Support/Keybot/config.json`，多台 Mac 同步只需 `git pull && ./build.sh`。
+
+## 默认映射规则
 
 | 触发 | 效果 | 范围 |
 |------|------|------|
-| Ctrl + C/V/X/Z/A/S/F | → Cmd + 同键 | 全局 |
-| Ctrl + 鼠标左键 | → Cmd + 鼠标左键 | 全局 |
+| Ctrl + C/V/X/Z/A/S/F/P | → Cmd + 同键 | 全局 |
+| Ctrl + 鼠标左键 | → Cmd + 鼠标左键 | 全局（始终生效） |
 | ESC | → Cmd + W（关闭窗口） | 仅访达、微信、QQ |
 | F5 | → Cmd + R（刷新） | 仅 Edge |
 | Ctrl + L | → 锁屏 + 1 秒后休眠 | 全局 |
 
-> **注意**：Terminal 里 Ctrl+C 也会被映射为 Cmd+C（复制）。发送 SIGINT 请改用 `kill` 命令。
+> **注意**：Terminal 里 Ctrl+C 也会被映射为 Cmd+C（复制）。发送 SIGINT 请改用 `kill` 命令，或在偏好设置里为 Terminal 的 Bundle ID 禁用该规则。
 
 ## 构建 & 安装
 
@@ -24,8 +35,6 @@
 git clone https://github.com/ricklxf/Keybot.git
 cd Keybot
 ./build.sh
-cp -r .build/Keybot.app /Applications/
-open /Applications/Keybot.app
 ```
 
 首次运行后：**系统设置 → 隐私与安全性 → 辅助功能** → 开启 Keybot。
