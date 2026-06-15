@@ -225,10 +225,18 @@ private struct MappingRowView: View {
                 .foregroundStyle(Color(NSColor.controlAccentColor))
                 .padding(.horizontal, 8)
                 .padding(.vertical, 3)
-                .background(
-                    Capsule()
-                        .fill(Color(NSColor.controlAccentColor).opacity(0.12))
-                )
+                .background(Capsule().fill(Color(NSColor.controlAccentColor).opacity(0.12)))
+        case .except(let ids) where ids.isEmpty:
+            Text("All Apps")
+                .font(.caption)
+                .foregroundStyle(Color.secondary)
+        case .except(let ids):
+            Text("Except \(ids.count)")
+                .font(.caption)
+                .foregroundStyle(Color.orange)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 3)
+                .background(Capsule().fill(Color.orange.opacity(0.12)))
         }
     }
 

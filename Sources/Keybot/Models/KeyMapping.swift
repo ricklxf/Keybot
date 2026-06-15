@@ -119,11 +119,13 @@ extension MappingAction: Codable {
 enum AppCondition: Hashable {
     case all
     case only([String])
+    case except([String])
 
     func matches(bundleID: String) -> Bool {
         switch self {
         case .all: return true
         case .only(let ids): return ids.contains(bundleID)
+        case .except(let ids): return !ids.contains(bundleID)
         }
     }
 
@@ -131,6 +133,7 @@ enum AppCondition: Hashable {
         switch self {
         case .all: return "All Apps"
         case .only(let ids): return ids.isEmpty ? "(none)" : ids.joined(separator: "\n")
+        case .except(let ids): return ids.isEmpty ? "(none excluded)" : ids.joined(separator: "\n")
         }
     }
 }
@@ -141,11 +144,10 @@ extension AppCondition: Codable {
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         let type = try c.decode(String.self, forKey: .type)
-        if type == "all" {
-            self = .all
-        } else {
-            let ids = try c.decode([String].self, forKey: .bundleIDs)
-            self = .only(ids)
+        switch type {
+        case "all":    self = .all
+        case "except": self = .except(try c.decode([String].self, forKey: .bundleIDs))
+        default:       self = .only(try c.decode([String].self, forKey: .bundleIDs))
         }
     }
 
@@ -156,6 +158,9 @@ extension AppCondition: Codable {
             try c.encode("all", forKey: .type)
         case .only(let ids):
             try c.encode("only", forKey: .type)
+            try c.encode(ids, forKey: .bundleIDs)
+        case .except(let ids):
+            try c.encode("except", forKey: .type)
             try c.encode(ids, forKey: .bundleIDs)
         }
     }

@@ -21,6 +21,7 @@ struct MappingEditView: View {
     enum ConditionType: String, CaseIterable {
         case all = "All Apps"
         case only = "Specific Apps"
+        case except = "Except Apps"
     }
 
     init(mapping: KeyMapping, onSave: @escaping (KeyMapping) -> Void) {
@@ -46,6 +47,9 @@ struct MappingEditView: View {
             _bundleIDsText = State(initialValue: "")
         case .only(let ids):
             _conditionType = State(initialValue: .only)
+            _bundleIDsText = State(initialValue: ids.joined(separator: "\n"))
+        case .except(let ids):
+            _conditionType = State(initialValue: .except)
             _bundleIDsText = State(initialValue: ids.joined(separator: "\n"))
         }
     }
@@ -124,7 +128,7 @@ struct MappingEditView: View {
                             .pickerStyle(.segmented)
                             .labelsHidden()
 
-                            if conditionType == .only {
+                            if conditionType == .only || conditionType == .except {
                                 ZStack(alignment: .topLeading) {
                                     TextEditor(text: $bundleIDsText)
                                         .font(.system(.body, design: .monospaced))
@@ -193,14 +197,14 @@ struct MappingEditView: View {
             : .remap(keyCode: targetKeyCode, modifiers: targetModifiers)
 
         let condition: AppCondition
-        if conditionType == .all {
-            condition = .all
-        } else {
-            let ids = bundleIDsText
-                .components(separatedBy: .newlines)
-                .map { $0.trimmingCharacters(in: .whitespaces) }
-                .filter { !$0.isEmpty }
-            condition = .only(ids)
+        let ids = bundleIDsText
+            .components(separatedBy: .newlines)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+        switch conditionType {
+        case .all:    condition = .all
+        case .only:   condition = .only(ids)
+        case .except: condition = .except(ids)
         }
 
         onSave(KeyMapping(
