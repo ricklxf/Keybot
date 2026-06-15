@@ -76,6 +76,10 @@ final class EventTap {
             return Unmanaged.passRetained(event)
         }
 
+        if ConfigStore.shared.isGloballyExcluded(frontBundleID) {
+            return Unmanaged.passRetained(event)
+        }
+
         let flags = event.flags
         let keyCode = CGKeyCode(event.getIntegerValueField(.keyboardEventKeycode))
         let isDown = type == .keyDown

@@ -5,6 +5,7 @@ struct PreferencesView: View {
     @State private var selectedID: UUID?
     @State private var editingMapping: KeyMapping?
     @State private var showingResetAlert = false
+    @State private var showingExclusions = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -12,7 +13,6 @@ struct PreferencesView: View {
             bottomBar
         }
         .frame(minWidth: 620, minHeight: 440)
-        // sheet(item:) 只在 item 非 nil 时弹出，彻底避免空白框
         .sheet(item: $editingMapping) { m in
             MappingEditView(mapping: m) { saved in
                 if store.mappings.contains(where: { $0.id == saved.id }) {
@@ -24,6 +24,9 @@ struct PreferencesView: View {
                     selectedID = saved.id
                 }
             }
+        }
+        .sheet(isPresented: $showingExclusions) {
+            GlobalExclusionsView()
         }
         .alert("Restore Defaults?", isPresented: $showingResetAlert) {
             Button("Restore", role: .destructive) { store.resetToDefaults() }
@@ -105,6 +108,12 @@ struct PreferencesView: View {
             .help("Edit rule")
 
             Spacer()
+
+            Button("Excluded Apps…") { showingExclusions = true }
+                .buttonStyle(.borderless)
+                .foregroundStyle(store.globalSettings.excludedBundleIDs.isEmpty ? .secondary : Color.orange)
+
+            Divider().frame(height: 14).padding(.horizontal, 6)
 
             Button("Restore Defaults") { showingResetAlert = true }
                 .buttonStyle(.borderless)
@@ -249,5 +258,94 @@ private struct MappingRowView: View {
                 }
             }
         )
+    }
+}
+
+// MARK: - Global Exclusions Sheet
+
+private struct GlobalExclusionsView: View {
+    @Environment(\.dismiss) private var dismiss
+    @ObservedObject private var store = ConfigStore.shared
+    @State private var text: String = ""
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Image(systemName: "nosign")
+                    .font(.title2)
+                    .foregroundStyle(.orange)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Excluded Apps")
+                        .font(.headline)
+                    Text("All remapping rules are skipped for these apps.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 20)
+            .padding(.bottom, 12)
+
+            Divider()
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Bundle IDs (one per line)")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .foregroundStyle(.secondary)
+
+                ZStack(alignment: .topLeading) {
+                    TextEditor(text: $text)
+                        .font(.system(.body, design: .monospaced))
+                        .frame(height: 140)
+                        .padding(4)
+                        .background(Color(NSColor.controlBackgroundColor))
+                        .clipShape(RoundedRectangle(cornerRadius: 7))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 7)
+                                .strokeBorder(Color(NSColor.separatorColor), lineWidth: 0.5)
+                        )
+
+                    if text.isEmpty {
+                        Text("e.g.\ncom.apple.Terminal\ncom.googlecode.iterm2")
+                            .font(.system(.body, design: .monospaced))
+                            .foregroundStyle(Color(NSColor.placeholderTextColor))
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 12)
+                            .allowsHitTesting(false)
+                    }
+                }
+            }
+            .padding(20)
+
+            Divider()
+
+            HStack {
+                Button("Cancel") { dismiss() }
+                    .keyboardShortcut(.cancelAction)
+                    .buttonStyle(.bordered)
+                Spacer()
+                Button("Save") { save() }
+                    .keyboardShortcut(.defaultAction)
+                    .buttonStyle(.borderedProminent)
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 14)
+        }
+        .frame(width: 380)
+        .fixedSize(horizontal: false, vertical: true)
+        .onAppear {
+            text = store.globalSettings.excludedBundleIDs.joined(separator: "\n")
+        }
+    }
+
+    private func save() {
+        let ids = text
+            .components(separatedBy: .newlines)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+        store.globalSettings.excludedBundleIDs = ids
+        dismiss()
     }
 }

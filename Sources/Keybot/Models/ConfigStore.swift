@@ -1,6 +1,10 @@
 import Foundation
 import Combine
 
+struct GlobalSettings: Codable {
+    var excludedBundleIDs: [String] = []
+}
+
 final class ConfigStore: ObservableObject {
     static let shared = ConfigStore()
 
@@ -8,15 +12,24 @@ final class ConfigStore: ObservableObject {
         didSet { save() }
     }
 
+    @Published var globalSettings: GlobalSettings {
+        didSet { saveSettings() }
+    }
+
     private let storePath: URL
+    private let settingsPath: URL
 
     private init() {
         let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
         let dir = support.appendingPathComponent("Keybot")
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         storePath = dir.appendingPathComponent("config.json")
+        settingsPath = dir.appendingPathComponent("settings.json")
+
         let loaded = Self.load(from: storePath) ?? Self.defaultMappings()
         mappings = loaded
+        globalSettings = Self.loadSettings(from: settingsPath) ?? GlobalSettings()
+
         if !FileManager.default.fileExists(atPath: storePath.path) {
             if let data = try? JSONEncoder().encode(loaded) {
                 try? data.write(to: storePath, options: .atomic)
@@ -28,14 +41,28 @@ final class ConfigStore: ObservableObject {
         mappings.filter(\.enabled)
     }
 
+    func isGloballyExcluded(_ bundleID: String) -> Bool {
+        globalSettings.excludedBundleIDs.contains(bundleID)
+    }
+
     private static func load(from url: URL) -> [KeyMapping]? {
         guard let data = try? Data(contentsOf: url) else { return nil }
         return try? JSONDecoder().decode([KeyMapping].self, from: data)
     }
 
+    private static func loadSettings(from url: URL) -> GlobalSettings? {
+        guard let data = try? Data(contentsOf: url) else { return nil }
+        return try? JSONDecoder().decode(GlobalSettings.self, from: data)
+    }
+
     private func save() {
         guard let data = try? JSONEncoder().encode(mappings) else { return }
         try? data.write(to: storePath, options: .atomic)
+    }
+
+    private func saveSettings() {
+        guard let data = try? JSONEncoder().encode(globalSettings) else { return }
+        try? data.write(to: settingsPath, options: .atomic)
     }
 
     func resetToDefaults() {
