@@ -76,7 +76,9 @@ final class EventTap {
             return Unmanaged.passRetained(event)
         }
 
-        if ConfigStore.shared.isGloballyExcluded(frontBundleID) {
+        let bundleID = NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? ""
+
+        if ConfigStore.shared.isGloballyExcluded(bundleID) {
             return Unmanaged.passRetained(event)
         }
 
@@ -86,7 +88,7 @@ final class EventTap {
 
         for mapping in ConfigStore.shared.enabledMappings {
             guard mapping.trigger.matches(keyCode: keyCode, flags: flags) else { continue }
-            guard mapping.condition.matches(bundleID: frontBundleID) else { continue }
+            guard mapping.condition.matches(bundleID: bundleID) else { continue }
 
             switch mapping.action {
             case .lockAndSleep:
