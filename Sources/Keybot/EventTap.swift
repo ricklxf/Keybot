@@ -62,6 +62,10 @@ final class EventTap {
 
     func handle(type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
         switch type {
+        case .tapDisabledByTimeout, .tapDisabledByUserInput:
+            // 系统会在回调响应慢或被判定异常时自动禁用 tap，需主动重新启用，否则按键全部失效直到重启
+            if let tap { CGEvent.tapEnable(tap: tap, enable: true) }
+            return Unmanaged.passRetained(event)
         case .keyDown, .keyUp:   return handleKey(type: type, event: event)
         case .leftMouseDown, .leftMouseUp: return handleMouse(event: event)
         default: return Unmanaged.passRetained(event)
