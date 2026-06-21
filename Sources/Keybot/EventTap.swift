@@ -17,7 +17,6 @@ final class EventTap {
 
     private var tap: CFMachPort?
     private(set) var isRunning = false
-    var frontBundleID = ""
     var isCapturingKey = false
 
     @discardableResult
@@ -44,20 +43,7 @@ final class EventTap {
         CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
         CGEvent.tapEnable(tap: tap, enable: true)
         isRunning = true
-
-        frontBundleID = NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? ""
-        NSWorkspace.shared.notificationCenter.addObserver(
-            self,
-            selector: #selector(appActivated(_:)),
-            name: NSWorkspace.didActivateApplicationNotification,
-            object: nil
-        )
         return true
-    }
-
-    @objc private func appActivated(_ n: Notification) {
-        let app = n.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication
-        frontBundleID = app?.bundleIdentifier ?? ""
     }
 
     func handle(type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
