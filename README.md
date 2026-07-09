@@ -26,6 +26,8 @@
 | `./build.sh` | 编译、打包、签名、安装到 /Applications |
 | `./update.sh` | `pull.sh` + `build.sh` |
 
+不想用终端的话，Finder 里双击对应的 `.command` 文件（`pull.command` / `build.command` / `update.command`）即可，效果一样。
+
 ## 默认映射规则
 
 | 触发 | 效果 | 范围 |

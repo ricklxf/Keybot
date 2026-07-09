@@ -26,6 +26,8 @@ Three command-line scripts:
 | `./build.sh` | Compile, package, sign, install to /Applications |
 | `./update.sh` | `pull.sh` + `build.sh` |
 
+Prefer not to use the terminal? Double-click the matching `.command` file in Finder (`pull.command` / `build.command` / `update.command`) — same effect.
+
 ## Default Mappings
 
 | Trigger | Action | Scope |
