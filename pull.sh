@@ -3,5 +3,5 @@ set -e
 
 cd "$(dirname "$0")"
 
-./pull.sh
-./build.sh
+echo "▶ 拉取最新代码..."
+git pull

@@ -16,7 +16,15 @@
 - **生效范围**：所有应用，或指定 Bundle ID 列表
 - 拖拽调整规则优先级，开关按钮单独禁用某条规则
 
-配置自动持久化到 `~/Library/Application Support/Keybot/config.json`，多台 Mac 同步只需 `git pull && ./build.sh`。
+配置自动持久化到 `~/Library/Application Support/Keybot/config.json`，多台 Mac 同步只需 `./update.sh`。
+
+三个命令行脚本：
+
+| 命令 | 作用 |
+|------|------|
+| `./pull.sh` | 拉取最新代码 |
+| `./build.sh` | 编译、打包、签名、安装到 /Applications |
+| `./update.sh` | `pull.sh` + `build.sh` |
 
 ## 默认映射规则
 

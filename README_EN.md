@@ -16,7 +16,15 @@ Click the menu bar icon → **Preferences…** (or `Cmd+,`) to open the configur
 - **Scope** — all apps, or a specific list of Bundle IDs
 - Drag rows to reorder rule priority; toggle individual rules on/off
 
-Config is persisted to `~/Library/Application Support/Keybot/config.json`. To sync across Macs: `git pull && ./build.sh`.
+Config is persisted to `~/Library/Application Support/Keybot/config.json`. To sync across Macs: `./update.sh`.
+
+Three command-line scripts:
+
+| Command | Action |
+|---------|--------|
+| `./pull.sh` | Pull latest code |
+| `./build.sh` | Compile, package, sign, install to /Applications |
+| `./update.sh` | `pull.sh` + `build.sh` |
 
 ## Default Mappings
 
