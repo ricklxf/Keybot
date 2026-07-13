@@ -12,6 +12,7 @@ struct MappingEditView: View {
     @State private var targetModifiers: [ModifierKey]
     @State private var conditionType: ConditionType
     @State private var bundleIDsText: String
+    @State private var requireTextSelection: Bool
 
     enum ActionType: String, CaseIterable {
         case remap = "Remap Key"
@@ -29,6 +30,7 @@ struct MappingEditView: View {
         _originalID = State(initialValue: mapping.id)
         _name = State(initialValue: mapping.name)
         _trigger = State(initialValue: mapping.trigger)
+        _requireTextSelection = State(initialValue: mapping.requireTextSelection)
 
         switch mapping.action {
         case .lockAndSleep:
@@ -113,6 +115,11 @@ struct MappingEditView: View {
 
                             if actionType == .remap {
                                 KeyRecorderView(trigger: targetTrigger)
+
+                                Toggle("Only if text is selected", isOn: $requireTextSelection)
+                                    .toggleStyle(.checkbox)
+                                    .font(.callout)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
                             }
                         }
                     }
@@ -212,7 +219,8 @@ struct MappingEditView: View {
             name: name.trimmingCharacters(in: .whitespaces),
             trigger: trigger,
             action: action,
-            condition: condition
+            condition: condition,
+            requireTextSelection: actionType == .remap && requireTextSelection
         ))
         dismiss()
     }

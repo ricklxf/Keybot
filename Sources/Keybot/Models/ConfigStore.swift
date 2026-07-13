@@ -57,12 +57,13 @@ final class ConfigStore: ObservableObject {
 
     private func save() {
         guard let data = try? JSONEncoder().encode(mappings) else { return }
-        try? data.write(to: storePath, options: .atomic)
+        // 不用 .atomic：atomic 写入是"写临时文件再 rename"，rename 会把 dotfiles 符号链接替换成普通文件，导致同步静默失效
+        try? data.write(to: storePath)
     }
 
     private func saveSettings() {
         guard let data = try? JSONEncoder().encode(globalSettings) else { return }
-        try? data.write(to: settingsPath, options: .atomic)
+        try? data.write(to: settingsPath)
     }
 
     func resetToDefaults() {
@@ -70,6 +71,8 @@ final class ConfigStore: ObservableObject {
     }
 
     static func defaultMappings() -> [KeyMapping] {
+        let terminalIDs = ["com.apple.Terminal", "com.googlecode.iterm2"]
+
         let ctrlToCmd: [(String, Int)] = [
             ("Ctrl+C → Cmd+C", 8),
             ("Ctrl+V → Cmd+V", 9),
@@ -85,9 +88,20 @@ final class ConfigStore: ObservableObject {
             KeyMapping(
                 name: name,
                 trigger: KeyTrigger(keyCode: kc, modifiers: [.control]),
-                action: .remap(keyCode: kc, modifiers: [.command])
+                action: .remap(keyCode: kc, modifiers: [.command]),
+                // Ctrl+C 在 Terminal/iTerm2 里交给下面那条选中态规则处理，这里排除掉
+                condition: kc == 8 ? .except(terminalIDs) : .all
             )
         }
+
+        // Terminal/iTerm2 里 Ctrl+C：选中文本时复制，没选中时保留中断（SIGINT）
+        result.insert(KeyMapping(
+            name: "Ctrl+C → Cmd+C (Terminal, if selected)",
+            trigger: KeyTrigger(keyCode: 8, modifiers: [.control]),
+            action: .remap(keyCode: 8, modifiers: [.command]),
+            condition: .only(terminalIDs),
+            requireTextSelection: true
+        ), at: 0)
 
         result.append(KeyMapping(
             name: "Ctrl+L → Lock & Sleep",

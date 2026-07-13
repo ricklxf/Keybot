@@ -79,6 +79,7 @@ final class EventTap {
         for mapping in ConfigStore.shared.enabledMappings {
             guard mapping.trigger.matches(keyCode: keyCode, flags: flags) else { continue }
             guard mapping.condition.matches(bundleID: bundleID) else { continue }
+            guard !mapping.requireTextSelection || hasSelectedText() else { continue }
 
             switch mapping.action {
             case .lockAndSleep:
@@ -96,6 +97,20 @@ final class EventTap {
         }
 
         return Unmanaged.passRetained(event)
+    }
+
+    private func hasSelectedText() -> Bool {
+        let systemWide = AXUIElementCreateSystemWide()
+        var focused: AnyObject?
+        guard AXUIElementCopyAttributeValue(systemWide, kAXFocusedUIElementAttribute as CFString, &focused) == .success,
+              let focused else { return false }
+
+        var selected: AnyObject?
+        let element = focused as! AXUIElement
+        guard AXUIElementCopyAttributeValue(element, kAXSelectedTextAttribute as CFString, &selected) == .success,
+              let text = selected as? String else { return false }
+
+        return !text.isEmpty
     }
 
     private func handleMouse(event: CGEvent) -> Unmanaged<CGEvent>? {

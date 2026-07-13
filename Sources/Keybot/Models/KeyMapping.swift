@@ -166,21 +166,53 @@ extension AppCondition: Codable {
     }
 }
 
-struct KeyMapping: Identifiable, Codable, Hashable {
+struct KeyMapping: Identifiable, Hashable {
     var id: UUID
     var name: String
     var enabled: Bool
     var trigger: KeyTrigger
     var action: MappingAction
     var condition: AppCondition
+    var requireTextSelection: Bool
 
     init(id: UUID = UUID(), name: String, enabled: Bool = true,
-         trigger: KeyTrigger, action: MappingAction, condition: AppCondition = .all) {
+         trigger: KeyTrigger, action: MappingAction, condition: AppCondition = .all,
+         requireTextSelection: Bool = false) {
         self.id = id
         self.name = name
         self.enabled = enabled
         self.trigger = trigger
         self.action = action
         self.condition = condition
+        self.requireTextSelection = requireTextSelection
+    }
+}
+
+extension KeyMapping: Codable {
+    private enum CodingKeys: String, CodingKey {
+        case id, name, enabled, trigger, action, condition, requireTextSelection
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(UUID.self, forKey: .id)
+        name = try c.decode(String.self, forKey: .name)
+        enabled = try c.decode(Bool.self, forKey: .enabled)
+        trigger = try c.decode(KeyTrigger.self, forKey: .trigger)
+        action = try c.decode(MappingAction.self, forKey: .action)
+        condition = try c.decode(AppCondition.self, forKey: .condition)
+        // 旧配置文件没有这个字段，缺省为 false 保持兼容
+        requireTextSelection = try c.decodeIfPresent(Bool.self, forKey: .requireTextSelection) ?? false
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(id, forKey: .id)
+        try c.encode(name, forKey: .name)
+        try c.encode(enabled, forKey: .enabled)
+        try c.encode(trigger, forKey: .trigger)
+        try c.encode(action, forKey: .action)
+        try c.encode(condition, forKey: .condition)
+        try c.encode(requireTextSelection, forKey: .requireTextSelection)
     }
 }
