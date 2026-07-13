@@ -22,7 +22,7 @@ final class PreferencesWindowController {
         w.titlebarAppearsTransparent = false
         w.toolbarStyle = .unified
         w.contentView = NSHostingView(rootView: PreferencesView())
-        w.minSize = NSSize(width: 540, height: 360)
+        w.minSize = NSSize(width: 620, height: 440)
         w.center()
         w.isReleasedWhenClosed = false
         window = w
