@@ -2,6 +2,12 @@ import Cocoa
 import ApplicationServices
 
 private let syntheticMarker: Int64 = 0x4B455942
+// Remoter（远程桌面被控端）注入按键/鼠标事件时打的标记，让 Keybot 的
+// 重映射逻辑直接放行，不去改写——远程控制场景下没有人物理坐在这台
+// 机器前，注入进来的按键应该原样落地，不该被本机的重映射规则再改写
+// 一遍。这个值要跟 Remoter-Mac/Sources/RemoterAgent/Input/InputLocker.swift
+// 里的 injectedTag 保持完全一致，两边分处不同仓库，改一边记得也改另一边。
+private let remoterInjectedMarker: Int64 = 0x52656d6f_00000001
 
 private func tapCallback(
     proxy: CGEventTapProxy,
@@ -59,7 +65,8 @@ final class EventTap {
     }
 
     private func handleKey(type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
-        if event.getIntegerValueField(.eventSourceUserData) == syntheticMarker {
+        let sourceTag = event.getIntegerValueField(.eventSourceUserData)
+        if sourceTag == syntheticMarker || sourceTag == remoterInjectedMarker {
             return Unmanaged.passRetained(event)
         }
         if isCapturingKey {
@@ -114,6 +121,9 @@ final class EventTap {
     }
 
     private func handleMouse(event: CGEvent) -> Unmanaged<CGEvent>? {
+        if event.getIntegerValueField(.eventSourceUserData) == remoterInjectedMarker {
+            return Unmanaged.passRetained(event)
+        }
         let flags = event.flags
         if flags.contains(.maskControl), !flags.contains(.maskCommand) {
             var newFlags = flags
