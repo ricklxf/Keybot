@@ -111,12 +111,23 @@ final class EventTap {
         var focused: AnyObject?
         guard AXUIElementCopyAttributeValue(systemWide, kAXFocusedUIElementAttribute as CFString, &focused) == .success,
               let focused else { return false }
+        let element = focused as! AXUIElement
+
+        // 优先查选区长度（kAXSelectedTextRangeAttribute），比取选中文本内容
+        // （kAXSelectedTextAttribute）更可靠——部分应用（如 Terminal）对后者
+        // 的实现不准确，可能在没有选区时也返回非空内容
+        var rangeValue: AnyObject?
+        if AXUIElementCopyAttributeValue(element, kAXSelectedTextRangeAttribute as CFString, &rangeValue) == .success,
+           let rangeValue, CFGetTypeID(rangeValue) == AXValueGetTypeID() {
+            var range = CFRange()
+            if AXValueGetValue(rangeValue as! AXValue, .cfRange, &range) {
+                return range.length > 0
+            }
+        }
 
         var selected: AnyObject?
-        let element = focused as! AXUIElement
         guard AXUIElementCopyAttributeValue(element, kAXSelectedTextAttribute as CFString, &selected) == .success,
               let text = selected as? String else { return false }
-
         return !text.isEmpty
     }
 
