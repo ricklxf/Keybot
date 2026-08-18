@@ -13,6 +13,7 @@ struct MappingEditView: View {
     @State private var conditionType: ConditionType
     @State private var bundleIDsText: String
     @State private var requireTextSelection: Bool
+    @State private var appliesToRemoterInjected: Bool
 
     enum ActionType: String, CaseIterable {
         case remap = "Remap Key"
@@ -31,6 +32,7 @@ struct MappingEditView: View {
         _name = State(initialValue: mapping.name)
         _trigger = State(initialValue: mapping.trigger)
         _requireTextSelection = State(initialValue: mapping.requireTextSelection)
+        _appliesToRemoterInjected = State(initialValue: mapping.appliesToRemoterInjected)
 
         switch mapping.action {
         case .lockAndSleep:
@@ -117,6 +119,11 @@ struct MappingEditView: View {
                                 KeyRecorderView(trigger: targetTrigger)
 
                                 Toggle("Only if text is selected", isOn: $requireTextSelection)
+                                    .toggleStyle(.checkbox)
+                                    .font(.callout)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                                Toggle("Also apply to Remoter-injected keys", isOn: $appliesToRemoterInjected)
                                     .toggleStyle(.checkbox)
                                     .font(.callout)
                                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -220,7 +227,8 @@ struct MappingEditView: View {
             trigger: trigger,
             action: action,
             condition: condition,
-            requireTextSelection: actionType == .remap && requireTextSelection
+            requireTextSelection: actionType == .remap && requireTextSelection,
+            appliesToRemoterInjected: actionType == .remap && appliesToRemoterInjected
         ))
         dismiss()
     }

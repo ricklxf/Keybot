@@ -66,9 +66,19 @@ final class EventTap {
 
     private func handleKey(type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
         let sourceTag = event.getIntegerValueField(.eventSourceUserData)
-        if sourceTag == syntheticMarker || sourceTag == remoterInjectedMarker {
+        if sourceTag == syntheticMarker {
             return Unmanaged.passRetained(event)
         }
+        // Remoter-injected keys used to skip every mapping unconditionally
+        // (see remoterInjectedMarker's doc comment above) — too broad: it
+        // also blocked rules a remote session actually needs (e.g. Ctrl+C →
+        // Cmd+C outside Terminal, or copying never works when driven via
+        // Remoter). Now only mappings that explicitly opt in via
+        // appliesToRemoterInjected run for these events; everything else —
+        // including anything with a real-world consequence like
+        // lockAndSleep — stays skipped by default, since nobody's
+        // physically at the machine to notice/undo it going wrong.
+        let isRemoterInjected = sourceTag == remoterInjectedMarker
         if isCapturingKey {
             return Unmanaged.passRetained(event)
         }
@@ -84,12 +94,19 @@ final class EventTap {
         let isDown = type == .keyDown
 
         for mapping in ConfigStore.shared.enabledMappings {
+            if isRemoterInjected && !mapping.appliesToRemoterInjected { continue }
             guard mapping.trigger.matches(keyCode: keyCode, flags: flags) else { continue }
             guard mapping.condition.matches(bundleID: bundleID) else { continue }
             guard !mapping.requireTextSelection || hasSelectedText() else { continue }
 
             switch mapping.action {
             case .lockAndSleep:
+                // Defense in depth: never let this fire for a remote
+                // session even if some future config mistakenly opts a
+                // lockAndSleep rule into appliesToRemoterInjected — the
+                // stakes (locking yourself out mid-session) are too high
+                // to trust a single checkbox.
+                if isRemoterInjected { continue }
                 if isDown { lockAndSleep() }
                 return nil
             case .remap(let targetKC, let targetMods):
