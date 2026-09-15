@@ -91,7 +91,7 @@ Karabiner 创建虚拟 HID 设备，通过内核驱动路由所有输入，驱�
 
 由 `cp -r src dst`（dst 已存在时）导致。`build.sh` 已在复制前执行 `rm -rf "$INSTALL"` 修复此问题。
 
-**`git push` 卡住或报 "Connection closed by UNKNOWN port 65535"**
+**`git push`/`git pull` 卡住或报 "Connection closed by UNKNOWN port 65535"**
 
 在 `~/.ssh/config` 的 GitHub 配置里加一行 `ConnectTimeout 10`：
 
@@ -100,3 +100,24 @@ Host github.com
     ProxyCommand connect -S 127.0.0.1:6153 %h %p
     ConnectTimeout 10
 ```
+
+**报错变成 "Connection closed by `<一个 198.18.x.x 的 IP>` port 22"**
+
+这个 IP 段是代理软件（Surge/Clash 等）Fake-IP 模式用的虚拟地址，说明本机 DNS 解析 `github.com` 被代理接管了，但裸 SSH 连接（不像 HTTPS 那样带 SNI）在这种模式下代理接不住，直连这个假 IP 必然失败。跟前一条的 `ConnectTimeout` 无关，是网络环境本身要求走代理、但走代理时端口 22 被挡的组合问题。
+
+解法：把 GitHub SSH 流量伪装成走 443 端口连到 `ssh.github.com`（GitHub 官方支持的机制），同时保留代理：
+
+```
+Host github.com
+    HostName ssh.github.com
+    Port 443
+    User git
+    ServerAliveInterval 10
+    ServerAliveCountMax 60
+    ConnectTimeout 10
+    ProxyCommand connect -S 127.0.0.1:6153 %h %p
+```
+
+改完用 `ssh -T git@github.com` 测试，第一次连接因为 `ssh.github.com` 是新主机名会提示确认指纹——只要提示里写着这个指纹在 `known_hosts` 里已经对应 `github.com`，就是同一台服务器，可以放心输入 `yes`。
+
+> 每台 Mac 的网络/代理环境不一样，这个配置不一定要通过 dotfiles 统一下发——本机不需要代理就能直连的话，不要加这段，加了反而可能绕远路。

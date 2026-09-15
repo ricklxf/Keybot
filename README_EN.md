@@ -91,7 +91,7 @@ Karabiner installs a virtual HID device and routes all input through a kernel dr
 
 Caused by `cp -r src dst` when dst already exists. `build.sh` does `rm -rf "$INSTALL"` before copying to prevent this.
 
-**`git push` hangs or fails with "Connection closed by UNKNOWN port 65535"**
+**`git push`/`git pull` hangs or fails with "Connection closed by UNKNOWN port 65535"**
 
 Add `ConnectTimeout 10` to the GitHub entry in `~/.ssh/config`:
 
@@ -100,3 +100,24 @@ Host github.com
     ProxyCommand connect -S 127.0.0.1:6153 %h %p
     ConnectTimeout 10
 ```
+
+**Error changes to "Connection closed by `<a 198.18.x.x address>` port 22"**
+
+That IP range is what proxy tools (Surge/Clash etc.) use for Fake-IP mode — it means local DNS resolution for `github.com` is being intercepted by the proxy, but a raw SSH connection (unlike HTTPS, which carries SNI) doesn't get properly caught by the proxy in this mode, so connecting directly to the fake IP always fails. Unrelated to the `ConnectTimeout` fix above — it's a combination of "this network requires the proxy" and "port 22 is blocked when going through it."
+
+Fix: disguise GitHub SSH traffic as port 443 traffic to `ssh.github.com` (an officially supported GitHub mechanism), keeping the proxy:
+
+```
+Host github.com
+    HostName ssh.github.com
+    Port 443
+    User git
+    ServerAliveInterval 10
+    ServerAliveCountMax 60
+    ConnectTimeout 10
+    ProxyCommand connect -S 127.0.0.1:6153 %h %p
+```
+
+Test with `ssh -T git@github.com`. The first connection will prompt to confirm a fingerprint since `ssh.github.com` is a new hostname — as long as the prompt says this fingerprint already matches `github.com` in `known_hosts`, it's the same server and safe to type `yes`.
+
+> Every Mac's network/proxy setup differs — this config doesn't need to be pushed to every machine via dotfiles. If a machine can connect directly without a proxy, don't add this; it would just add an unnecessary detour.
