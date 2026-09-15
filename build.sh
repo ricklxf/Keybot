@@ -7,7 +7,17 @@ BUNDLE=".build/${APP}.app"
 INSTALL="/Applications/${APP}.app"
 
 echo "▶ 编译..."
-swift build -c release
+if ! swift build -c release; then
+    echo "  ⚠️  默认 SDK 编译失败（可能是 Command Line Tools 新 SDK 的 SwiftUI 宏插件加载问题），尝试用旧版本 SDK 重试..."
+    FALLBACK_SDK=$(ls -d /Library/Developer/CommandLineTools/SDKs/MacOSX26*.sdk 2>/dev/null | sort -V | tail -1)
+    if [ -n "$FALLBACK_SDK" ]; then
+        echo "  → 使用 $FALLBACK_SDK"
+        SDKROOT="$FALLBACK_SDK" swift build -c release
+    else
+        echo "  ✗ 找不到可用的备用 SDK，请检查 Command Line Tools 安装"
+        exit 1
+    fi
+fi
 
 echo "▶ 打包 .app..."
 rm -rf "$BUNDLE"
