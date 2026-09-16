@@ -180,10 +180,17 @@ struct KeyMapping: Identifiable, Hashable {
     // 远程注入场景下也生效（比如"Ctrl+C → Cmd+C"要让远程复制正常工作），才
     // 把这个打开，逐条选择性放行，而不是整体放开。
     var appliesToRemoterInjected: Bool
+    // 默认 false：修饰键改动用"原地改事件"方式下发（见 EventTap），这样对被控端
+    // 远程桌面最友好，不会产生修饰键状态跳变。但 Chromium 系浏览器（Edge/Chrome）
+    // 对这种原地修改不敏感，识别不出来，需要改成"消耗原事件+发一个全新事件"才行。
+    // 只在这类应用上打开，不能设成通用默认值，否则会在远程桌面场景下重新引入
+    // 之前修过的修饰键卡住问题。
+    var useSyntheticRepost: Bool
 
     init(id: UUID = UUID(), name: String, enabled: Bool = true,
          trigger: KeyTrigger, action: MappingAction, condition: AppCondition = .all,
-         requireTextSelection: Bool = false, appliesToRemoterInjected: Bool = false) {
+         requireTextSelection: Bool = false, appliesToRemoterInjected: Bool = false,
+         useSyntheticRepost: Bool = false) {
         self.id = id
         self.name = name
         self.enabled = enabled
@@ -192,12 +199,13 @@ struct KeyMapping: Identifiable, Hashable {
         self.condition = condition
         self.requireTextSelection = requireTextSelection
         self.appliesToRemoterInjected = appliesToRemoterInjected
+        self.useSyntheticRepost = useSyntheticRepost
     }
 }
 
 extension KeyMapping: Codable {
     private enum CodingKeys: String, CodingKey {
-        case id, name, enabled, trigger, action, condition, requireTextSelection, appliesToRemoterInjected
+        case id, name, enabled, trigger, action, condition, requireTextSelection, appliesToRemoterInjected, useSyntheticRepost
     }
 
     init(from decoder: Decoder) throws {
@@ -211,6 +219,7 @@ extension KeyMapping: Codable {
         // 旧配置文件没有这些字段，缺省为 false 保持兼容
         requireTextSelection = try c.decodeIfPresent(Bool.self, forKey: .requireTextSelection) ?? false
         appliesToRemoterInjected = try c.decodeIfPresent(Bool.self, forKey: .appliesToRemoterInjected) ?? false
+        useSyntheticRepost = try c.decodeIfPresent(Bool.self, forKey: .useSyntheticRepost) ?? false
     }
 
     func encode(to encoder: Encoder) throws {
@@ -223,5 +232,6 @@ extension KeyMapping: Codable {
         try c.encode(condition, forKey: .condition)
         try c.encode(requireTextSelection, forKey: .requireTextSelection)
         try c.encode(appliesToRemoterInjected, forKey: .appliesToRemoterInjected)
+        try c.encode(useSyntheticRepost, forKey: .useSyntheticRepost)
     }
 }

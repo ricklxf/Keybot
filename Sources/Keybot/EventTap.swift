@@ -110,10 +110,16 @@ final class EventTap {
                 if isDown { lockAndSleep() }
                 return nil
             case .remap(let targetKC, let targetMods):
-                // 原地修改事件，避免消耗原始事件再发合成事件
-                // 消耗+重发会产生修饰键状态跳变，导致被控端远程桌面修饰键卡住
                 var f = CGEventFlags()
                 for m in targetMods { f.insert(m.flag) }
+                if mapping.useSyntheticRepost {
+                    // Chromium 系应用（Edge/Chrome）对原地改事件不敏感，识别不出来，
+                    // 必须消耗原事件再发一个全新的合成事件才行
+                    postKey(CGKeyCode(targetKC), modifiers: f, isDown: isDown)
+                    return nil
+                }
+                // 原地修改事件，避免消耗原始事件再发合成事件
+                // 消耗+重发会产生修饰键状态跳变，导致被控端远程桌面修饰键卡住
                 event.setIntegerValueField(.keyboardEventKeycode, value: Int64(targetKC))
                 event.flags = f
                 return Unmanaged.passRetained(event)
