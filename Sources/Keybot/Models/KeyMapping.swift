@@ -174,12 +174,6 @@ struct KeyMapping: Identifiable, Hashable {
     var action: MappingAction
     var condition: AppCondition
     var requireTextSelection: Bool
-    // 默认 false：Remoter（远程桌面被控端）注入的按键整体跳过所有规则，见
-    // EventTap.handleKey——这是故意的默认行为，因为规则列表里可能有危险动作
-    // （比如 lockAndSleep），不该被远程会话意外触发。个别规则如果明确需要在
-    // 远程注入场景下也生效（比如"Ctrl+C → Cmd+C"要让远程复制正常工作），才
-    // 把这个打开，逐条选择性放行，而不是整体放开。
-    var appliesToRemoterInjected: Bool
     // 默认 false：修饰键改动用"原地改事件"方式下发（见 EventTap），这样对被控端
     // 远程桌面最友好，不会产生修饰键状态跳变。但 Chromium 系浏览器（Edge/Chrome）
     // 对这种原地修改不敏感，识别不出来，需要改成"消耗原事件+发一个全新事件"才行。
@@ -189,8 +183,7 @@ struct KeyMapping: Identifiable, Hashable {
 
     init(id: UUID = UUID(), name: String, enabled: Bool = true,
          trigger: KeyTrigger, action: MappingAction, condition: AppCondition = .all,
-         requireTextSelection: Bool = false, appliesToRemoterInjected: Bool = false,
-         useSyntheticRepost: Bool = false) {
+         requireTextSelection: Bool = false, useSyntheticRepost: Bool = false) {
         self.id = id
         self.name = name
         self.enabled = enabled
@@ -198,14 +191,13 @@ struct KeyMapping: Identifiable, Hashable {
         self.action = action
         self.condition = condition
         self.requireTextSelection = requireTextSelection
-        self.appliesToRemoterInjected = appliesToRemoterInjected
         self.useSyntheticRepost = useSyntheticRepost
     }
 }
 
 extension KeyMapping: Codable {
     private enum CodingKeys: String, CodingKey {
-        case id, name, enabled, trigger, action, condition, requireTextSelection, appliesToRemoterInjected, useSyntheticRepost
+        case id, name, enabled, trigger, action, condition, requireTextSelection, useSyntheticRepost
     }
 
     init(from decoder: Decoder) throws {
@@ -218,7 +210,6 @@ extension KeyMapping: Codable {
         condition = try c.decode(AppCondition.self, forKey: .condition)
         // 旧配置文件没有这些字段，缺省为 false 保持兼容
         requireTextSelection = try c.decodeIfPresent(Bool.self, forKey: .requireTextSelection) ?? false
-        appliesToRemoterInjected = try c.decodeIfPresent(Bool.self, forKey: .appliesToRemoterInjected) ?? false
         useSyntheticRepost = try c.decodeIfPresent(Bool.self, forKey: .useSyntheticRepost) ?? false
     }
 
@@ -231,7 +222,6 @@ extension KeyMapping: Codable {
         try c.encode(action, forKey: .action)
         try c.encode(condition, forKey: .condition)
         try c.encode(requireTextSelection, forKey: .requireTextSelection)
-        try c.encode(appliesToRemoterInjected, forKey: .appliesToRemoterInjected)
         try c.encode(useSyntheticRepost, forKey: .useSyntheticRepost)
     }
 }

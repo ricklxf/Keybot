@@ -2,12 +2,6 @@ import Cocoa
 import ApplicationServices
 
 private let syntheticMarker: Int64 = 0x4B455942
-// Remoter（远程桌面被控端）注入按键/鼠标事件时打的标记，让 Keybot 的
-// 重映射逻辑直接放行，不去改写——远程控制场景下没有人物理坐在这台
-// 机器前，注入进来的按键应该原样落地，不该被本机的重映射规则再改写
-// 一遍。这个值要跟 Remoter-Mac/Sources/RemoterAgent/Input/InputLocker.swift
-// 里的 injectedTag 保持完全一致，两边分处不同仓库，改一边记得也改另一边。
-private let remoterInjectedMarker: Int64 = 0x52656d6f_00000001
 
 private func tapCallback(
     proxy: CGEventTapProxy,
@@ -65,20 +59,9 @@ final class EventTap {
     }
 
     private func handleKey(type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
-        let sourceTag = event.getIntegerValueField(.eventSourceUserData)
-        if sourceTag == syntheticMarker {
+        if event.getIntegerValueField(.eventSourceUserData) == syntheticMarker {
             return Unmanaged.passRetained(event)
         }
-        // Remoter-injected keys used to skip every mapping unconditionally
-        // (see remoterInjectedMarker's doc comment above) — too broad: it
-        // also blocked rules a remote session actually needs (e.g. Ctrl+C →
-        // Cmd+C outside Terminal, or copying never works when driven via
-        // Remoter). Now only mappings that explicitly opt in via
-        // appliesToRemoterInjected run for these events; everything else —
-        // including anything with a real-world consequence like
-        // lockAndSleep — stays skipped by default, since nobody's
-        // physically at the machine to notice/undo it going wrong.
-        let isRemoterInjected = sourceTag == remoterInjectedMarker
         if isCapturingKey {
             return Unmanaged.passRetained(event)
         }
@@ -94,19 +77,12 @@ final class EventTap {
         let isDown = type == .keyDown
 
         for mapping in ConfigStore.shared.enabledMappings {
-            if isRemoterInjected && !mapping.appliesToRemoterInjected { continue }
             guard mapping.trigger.matches(keyCode: keyCode, flags: flags) else { continue }
             guard mapping.condition.matches(bundleID: bundleID) else { continue }
             guard !mapping.requireTextSelection || hasSelectedText() else { continue }
 
             switch mapping.action {
             case .lockAndSleep:
-                // Defense in depth: never let this fire for a remote
-                // session even if some future config mistakenly opts a
-                // lockAndSleep rule into appliesToRemoterInjected — the
-                // stakes (locking yourself out mid-session) are too high
-                // to trust a single checkbox.
-                if isRemoterInjected { continue }
                 if isDown { lockAndSleep() }
                 return nil
             case .remap(let targetKC, let targetMods):
@@ -155,9 +131,6 @@ final class EventTap {
     }
 
     private func handleMouse(event: CGEvent) -> Unmanaged<CGEvent>? {
-        if event.getIntegerValueField(.eventSourceUserData) == remoterInjectedMarker {
-            return Unmanaged.passRetained(event)
-        }
         let flags = event.flags
         if flags.contains(.maskControl), !flags.contains(.maskCommand) {
             var newFlags = flags
