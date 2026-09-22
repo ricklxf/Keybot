@@ -121,3 +121,7 @@ Host github.com
 Test with `ssh -T git@github.com`. The first connection will prompt to confirm a fingerprint since `ssh.github.com` is a new hostname — as long as the prompt says this fingerprint already matches `github.com` in `known_hosts`, it's the same server and safe to type `yes`.
 
 > Every Mac's network/proxy setup differs — this config doesn't need to be pushed to every machine via dotfiles. If a machine can connect directly without a proxy, don't add this; it would just add an unnecessary detour.
+
+**Keybot's icon shows it's running, but keys stop responding entirely — feels frozen**
+
+Some rules (e.g. Ctrl+C in Terminal/Edge) need to check "is there selected text right now," which queries the target app across processes. If that app happens to be hung/unresponsive (a heavy web page in Edge, say), the query just waits for it to respond. That query sits in the same processing queue as every keystroke, so one stuck query stalls system-wide keyboard input — it's not Keybot itself hanging, it's being dragged down by another app. This is now capped with a 0.2s timeout (`AXUIElementSetMessagingTimeout`) — on timeout it's treated as "no selection" instead of waiting indefinitely. If you still see "running but totally unresponsive," check whether some app is hung.
