@@ -107,10 +107,15 @@ final class EventTap {
 
     private func hasSelectedText() -> Bool {
         let systemWide = AXUIElementCreateSystemWide()
+        // 目标 App 卡住/无响应时，Accessibility 查询会一直等它回应——这个查询
+        // 跟所有按键事件挤在同一条处理队列里，卡住等于把全系统键盘输入都拖死。
+        // 设个超时上限，超时就当查不到处理，不能让它无限期等下去。
+        AXUIElementSetMessagingTimeout(systemWide, 0.2)
         var focused: AnyObject?
         guard AXUIElementCopyAttributeValue(systemWide, kAXFocusedUIElementAttribute as CFString, &focused) == .success,
               let focused else { return false }
         let element = focused as! AXUIElement
+        AXUIElementSetMessagingTimeout(element, 0.2)
 
         // 优先查选区长度（kAXSelectedTextRangeAttribute），比取选中文本内容
         // （kAXSelectedTextAttribute）更可靠——部分应用（如 Terminal）对后者
