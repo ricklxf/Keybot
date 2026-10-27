@@ -72,6 +72,8 @@ bash scripts/create_cert.sh
 
 - **别人连入你的 Mac**（Screen Sharing / VNC）：映射正常生效，CGEventTap 跑在本地 session
 - **你从 Mac 连出去到 Windows**（Microsoft Remote Desktop 等）：客户端会把 Mac 的 Cmd 映射为 Windows 的 Ctrl，所以 Ctrl+C → Cmd+C → 客户端 → Windows Ctrl+C，符合预期
+- **从 Windows 远控这台 Mac**（网易 UU 远程等）：**不要让 Keybot 处理远程按键**。在远控软件里把 Windows 的 **Ctrl 映射为 ⌘ Command**（Win 键映射为 ^ Control），Ctrl+V 到 Mac 直接就是 Cmd+V，不会触发改键规则。
+  - **踩坑（2026-10-27）**：UU 映射原为 Ctrl → Control 时，远程按 Ctrl+V 靠 Keybot 原地改成 Cmd+V。但 Keybot 只改 V 这个按键事件的修饰键，Control 本身的按下/松开事件原样放行，应用收到“Control 按下 → V 按下（标记 Command）→ Control 松开”，两者对不上。Claude、Edge 这类 Chromium/Electron 应用自己记的修饰键状态就乱了，表现为粘贴后像一直按着 Ctrl，按 Esc 才恢复，几乎 100% 复现。macOS 系统层面的 Ctrl 状态始终是松开的（用 `CGEventSource.flagsState` 实测），所以下面“不会 stuck”只对驱动层成立，应用层仍可能被这种不一致的事件序列搞乱。
 
 ## 技术原理
 

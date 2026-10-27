@@ -72,6 +72,8 @@ This creates a self-signed "Keybot" certificate in your login keychain. Subseque
 
 - **Someone connects into your Mac** (Screen Sharing / VNC) — remapping works normally, CGEventTap runs in the local session
 - **You connect out to Windows** (Microsoft Remote Desktop etc.) — most clients map Mac's Cmd to Windows Ctrl, so Ctrl+C → Cmd+C → client → Windows Ctrl+C, which is the expected behavior
+- **Windows controls this Mac** (NetEase UU Remote etc.) — **don't let Keybot handle remote keys**. In the remote client, map Windows **Ctrl to ⌘ Command** (and Win to ^ Control), so Ctrl+V arrives on the Mac as Cmd+V and never triggers a remapping rule.
+  - **Pitfall (2026-10-27)**: with UU mapping Ctrl → Control, remote Ctrl+V relied on Keybot rewriting it in place to Cmd+V. But Keybot swaps only the V key event's modifier; the Control press/release events pass through untouched, so the app sees "Control down → V down (flagged Command) → Control up", which don't match. Chromium/Electron apps such as Claude and Edge, which track modifier state themselves, get confused: after pasting, Ctrl seems held until Esc is pressed, reproducing almost 100% of the time. macOS's own Ctrl state stays released (verified with `CGEventSource.flagsState`), so "no stuck keys" below only holds at the driver level; the app level can still be confused by this mismatched event sequence.
 
 ## How It Works
 
