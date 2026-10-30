@@ -74,6 +74,7 @@ bash scripts/create_cert.sh
 - **你从 Mac 连出去到 Windows**（Microsoft Remote Desktop 等）：客户端会把 Mac 的 Cmd 映射为 Windows 的 Ctrl，所以 Ctrl+C → Cmd+C → 客户端 → Windows Ctrl+C，符合预期
 - **从 Windows 远控这台 Mac**（网易 UU 远程等）：**不要让 Keybot 处理远程按键**。在远控软件里把 Windows 的 **Ctrl 映射为 ⌘ Command**（Win 键映射为 ^ Control），Ctrl+V 到 Mac 直接就是 Cmd+V，不会触发改键规则。
   - **踩坑（2026-10-27）**：UU 映射原为 Ctrl → Control 时，远程按 Ctrl+V 靠 Keybot 原地改成 Cmd+V。但 Keybot 只改 V 这个按键事件的修饰键，Control 本身的按下/松开事件原样放行，应用收到“Control 按下 → V 按下（标记 Command）→ Control 松开”，两者对不上。Claude、Edge 这类 Chromium/Electron 应用自己记的修饰键状态就乱了，表现为粘贴后像一直按着 Ctrl，按 Esc 才恢复，几乎 100% 复现。macOS 系统层面的 Ctrl 状态始终是松开的（用 `CGEventSource.flagsState` 实测），所以下面“不会 stuck”只对驱动层成立，应用层仍可能被这种不一致的事件序列搞乱。
+  - **修复（2026-10-30）**：从 mac2 用 UU 远控 mac4 时同样卡 Ctrl，而 UU 的 Mac 客户端没有 Mac→Mac 的按键映射，绕不开，于是在 Keybot 里修根因：命中“Ctrl+键 → Cmd+键”规则时，先用 `tapPostEvent` 在按键前补发“Control 松开、Command 按下”；物理 Ctrl 松开时把该事件改写成“Command 松开”；按住 Ctrl 期间按了不改的键（如 Ctrl+K、终端无选区的 Ctrl+C），先补“Command 松开、Control 按下”还原；漏掉 Ctrl 松开时，下一个不带 Ctrl 的事件会补发 Command 松开自愈。为此事件监听新增了 `flagsChanged`。修好后无论本机键盘、Windows 远控还是 Mac 远控 Mac，应用看到的修饰键序列都是自洽的。
 
 ## 技术原理
 

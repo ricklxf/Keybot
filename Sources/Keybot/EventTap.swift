@@ -3,13 +3,20 @@ import ApplicationServices
 
 private let syntheticMarker: Int64 = 0x4B455942
 
+private let kcCommand: CGKeyCode = 55
+private let kcControl: CGKeyCode = 59
+private let kcRightControl: CGKeyCode = 62
+// 设备相关的左右修饰键位（NX_DEVICE*KEYMASK），只改 maskControl/maskCommand 会留下残位
+private let deviceCtrlBits: UInt64 = 0x0001 | 0x2000
+private let deviceCmdBits: UInt64 = 0x0008 | 0x0010
+
 private func tapCallback(
     proxy: CGEventTapProxy,
     type: CGEventType,
     event: CGEvent,
     userInfo: UnsafeMutableRawPointer?
 ) -> Unmanaged<CGEvent>? {
-    EventTap.shared.handle(type: type, event: event)
+    EventTap.shared.handle(proxy: proxy, type: type, event: event)
 }
 
 final class EventTap {
@@ -18,6 +25,8 @@ final class EventTap {
     private var tap: CFMachPort?
     private(set) var isRunning = false
     var isCapturingKey = false
+    // 物理上按着 Control，但已对应用宣称"Control 松开、Command 按下"
+    private var ctrlSwapped = false
 
     @discardableResult
     func start() -> Bool {
@@ -26,6 +35,7 @@ final class EventTap {
         let mask: CGEventMask =
             (1 << CGEventType.keyDown.rawValue) |
             (1 << CGEventType.keyUp.rawValue) |
+            (1 << CGEventType.flagsChanged.rawValue) |
             (1 << CGEventType.leftMouseDown.rawValue) |
             (1 << CGEventType.leftMouseUp.rawValue)
 
@@ -46,19 +56,20 @@ final class EventTap {
         return true
     }
 
-    func handle(type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
+    func handle(proxy: CGEventTapProxy, type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
         switch type {
         case .tapDisabledByTimeout, .tapDisabledByUserInput:
             // 系统会在回调响应慢或被判定异常时自动禁用 tap，需主动重新启用，否则按键全部失效直到重启
             if let tap { CGEvent.tapEnable(tap: tap, enable: true) }
             return Unmanaged.passRetained(event)
-        case .keyDown, .keyUp:   return handleKey(type: type, event: event)
+        case .keyDown, .keyUp:   return handleKey(proxy: proxy, type: type, event: event)
+        case .flagsChanged:      return handleFlags(proxy: proxy, event: event)
         case .leftMouseDown, .leftMouseUp: return handleMouse(event: event)
         default: return Unmanaged.passRetained(event)
         }
     }
 
-    private func handleKey(type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
+    private func handleKey(proxy: CGEventTapProxy, type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
         if event.getIntegerValueField(.eventSourceUserData) == syntheticMarker {
             return Unmanaged.passRetained(event)
         }
@@ -88,6 +99,15 @@ final class EventTap {
             case .remap(let targetKC, let targetMods):
                 var f = CGEventFlags()
                 for m in targetMods { f.insert(m.flag) }
+                // Ctrl+键 → Cmd+键 时，应用（尤其 Chromium/Electron）只看到 Control 的按下/松开，
+                // 中间却夹着带 Command 的按键，内部修饰键状态会错乱成"Ctrl 卡住"（远程桌面必现）。
+                // 所以先补发配套的修饰键事件，让 Control/Command 的按下松开序列自洽
+                if flags.contains(.maskControl), !flags.contains(.maskCommand),
+                   f.contains(.maskCommand), !f.contains(.maskControl) {
+                    beginCtrlSwap(proxy: proxy, flags: flags)
+                } else {
+                    endCtrlSwap(proxy: proxy, flags: flags)
+                }
                 if mapping.useSyntheticRepost {
                     // Chromium 系应用（Edge/Chrome）对原地改事件不敏感，识别不出来，
                     // 必须消耗原事件再发一个全新的合成事件才行
@@ -102,7 +122,64 @@ final class EventTap {
             }
         }
 
+        // 按住 Ctrl 期间按了不改的键（如 Ctrl+K），先把 Control 还给应用
+        endCtrlSwap(proxy: proxy, flags: flags)
         return Unmanaged.passRetained(event)
+    }
+
+    private func handleFlags(proxy: CGEventTapProxy, event: CGEvent) -> Unmanaged<CGEvent>? {
+        guard ctrlSwapped, event.getIntegerValueField(.eventSourceUserData) != syntheticMarker else {
+            return Unmanaged.passRetained(event)
+        }
+        let flags = event.flags
+        let keyCode = CGKeyCode(event.getIntegerValueField(.keyboardEventKeycode))
+        if (keyCode == kcControl || keyCode == kcRightControl), !flags.contains(.maskControl) {
+            // 松开物理 Ctrl → 对应用来说是松开 Command
+            ctrlSwapped = false
+            event.setIntegerValueField(.keyboardEventKeycode, value: Int64(kcCommand))
+            event.flags = withoutCtrlCmd(flags)
+            return Unmanaged.passRetained(event)
+        }
+        if !flags.contains(.maskControl) {
+            // 漏掉了 Ctrl 松开（如 tap 曾被系统暂停），补一个 Command 松开自愈
+            endCtrlSwap(proxy: proxy, flags: flags)
+            return Unmanaged.passRetained(event)
+        }
+        // 交换期间按下/松开其他修饰键：继续对应用呈现 Command 而不是 Control
+        event.flags = withoutCtrlCmd(flags).union(CGEventFlags(rawValue: CGEventFlags.maskCommand.rawValue | 0x0008))
+        return Unmanaged.passRetained(event)
+    }
+
+    private func beginCtrlSwap(proxy: CGEventTapProxy, flags: CGEventFlags) {
+        guard !ctrlSwapped else { return }
+        ctrlSwapped = true
+        let released = CGEventFlags(rawValue: flags.subtracting(.maskControl).rawValue & ~deviceCtrlBits)
+        postModifier(proxy: proxy, keyCode: kcControl, flags: released)
+        postModifier(proxy: proxy, keyCode: kcCommand,
+                     flags: released.union(CGEventFlags(rawValue: CGEventFlags.maskCommand.rawValue | 0x0008)))
+    }
+
+    private func endCtrlSwap(proxy: CGEventTapProxy, flags: CGEventFlags) {
+        guard ctrlSwapped else { return }
+        ctrlSwapped = false
+        postModifier(proxy: proxy, keyCode: kcCommand, flags: withoutCtrlCmd(flags))
+        if flags.contains(.maskControl) {
+            postModifier(proxy: proxy, keyCode: kcControl,
+                         flags: withoutCtrlCmd(flags).union(CGEventFlags(rawValue: CGEventFlags.maskControl.rawValue | 0x0001)))
+        }
+    }
+
+    private func withoutCtrlCmd(_ flags: CGEventFlags) -> CGEventFlags {
+        CGEventFlags(rawValue: flags.subtracting([.maskControl, .maskCommand]).rawValue & ~(deviceCtrlBits | deviceCmdBits))
+    }
+
+    // tapPostEvent 插在本 tap 之后、当前事件之前送达，保证修饰键事件先于被改写的按键
+    private func postModifier(proxy: CGEventTapProxy, keyCode: CGKeyCode, flags: CGEventFlags) {
+        guard let e = CGEvent(keyboardEventSource: nil, virtualKey: keyCode, keyDown: true) else { return }
+        e.type = .flagsChanged
+        e.flags = flags
+        e.setIntegerValueField(.eventSourceUserData, value: syntheticMarker)
+        e.tapPostEvent(proxy)
     }
 
     private func hasSelectedText() -> Bool {
