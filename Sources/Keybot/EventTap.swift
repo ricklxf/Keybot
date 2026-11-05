@@ -27,6 +27,11 @@ final class EventTap {
     var isCapturingKey = false
     // 物理上按着 Control，但已对应用宣称"Control 松开、Command 按下"
     private var ctrlSwapped = false
+    // 最近一次修饰键事件里各修饰键的状态；用来识别"事件说已松开、系统却仍认为按着"的卡键
+    private var lastModFlags = CGEventFlags()
+    private var stuckSince: Date?
+    private var healTimer: Timer?
+    private let healMask: CGEventFlags = [.maskCommand, .maskControl, .maskAlternate, .maskShift]
 
     @discardableResult
     func start() -> Bool {
@@ -53,7 +58,34 @@ final class EventTap {
         CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
         CGEvent.tapEnable(tap: tap, enable: true)
         isRunning = true
+        healTimer?.invalidate()
+        healTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
+            self?.healStuckModifiers()
+        }
         return true
+    }
+
+    // 远控软件（如 UU）偶尔漏发修饰键松开：事件流里已经松开，系统状态却仍卡着，
+    // 表现为一直按着 Command/Ctrl。不一致持续 1 秒以上就补发一个松开。
+    private func healStuckModifiers() {
+        guard !ctrlSwapped, !isCapturingKey else { stuckSince = nil; return }
+        let sys = CGEventSource.flagsState(.hidSystemState).intersection(healMask)
+        let stuck = sys.subtracting(lastModFlags)
+        guard !stuck.isEmpty else { stuckSince = nil; return }
+        guard let since = stuckSince else { stuckSince = Date(); return }
+        guard Date().timeIntervalSince(since) >= 1.0 else { return }
+        stuckSince = nil
+        let keys: [(CGEventFlags, CGKeyCode)] = [(.maskCommand, kcCommand), (.maskControl, kcControl),
+                                                 (.maskAlternate, 58), (.maskShift, 56)]
+        var remaining = sys
+        for (flag, kc) in keys where stuck.contains(flag) {
+            remaining.remove(flag)
+            guard let e = CGEvent(keyboardEventSource: nil, virtualKey: kc, keyDown: false) else { continue }
+            e.type = .flagsChanged
+            e.flags = remaining
+            e.setIntegerValueField(.eventSourceUserData, value: syntheticMarker)
+            e.post(tap: .cghidEventTap)
+        }
     }
 
     func handle(proxy: CGEventTapProxy, type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
@@ -128,6 +160,9 @@ final class EventTap {
     }
 
     private func handleFlags(proxy: CGEventTapProxy, event: CGEvent) -> Unmanaged<CGEvent>? {
+        if event.getIntegerValueField(.eventSourceUserData) != syntheticMarker {
+            lastModFlags = event.flags.intersection(healMask)
+        }
         guard ctrlSwapped, event.getIntegerValueField(.eventSourceUserData) != syntheticMarker else {
             return Unmanaged.passRetained(event)
         }
