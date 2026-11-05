@@ -75,7 +75,7 @@ bash scripts/create_cert.sh
 - **从 Windows 远控这台 Mac**（网易 UU 远程等）：**不要让 Keybot 处理远程按键**。在远控软件里把 Windows 的 **Ctrl 映射为 ⌘ Command**（Win 键映射为 ^ Control），Ctrl+V 到 Mac 直接就是 Cmd+V，不会触发改键规则。
   - **踩坑（2026-10-27）**：UU 映射原为 Ctrl → Control 时，远程按 Ctrl+V 靠 Keybot 原地改成 Cmd+V。但 Keybot 只改 V 这个按键事件的修饰键，Control 本身的按下/松开事件原样放行，应用收到“Control 按下 → V 按下（标记 Command）→ Control 松开”，两者对不上。Claude、Edge 这类 Chromium/Electron 应用自己记的修饰键状态就乱了，表现为粘贴后像一直按着 Ctrl，按 Esc 才恢复，几乎 100% 复现。macOS 系统层面的 Ctrl 状态始终是松开的（用 `CGEventSource.flagsState` 实测），所以下面“不会 stuck”只对驱动层成立，应用层仍可能被这种不一致的事件序列搞乱。
   - **修复（2026-10-30）**：从 mac2 用 UU 远控 mac4 时同样卡 Ctrl，而 UU 的 Mac 客户端没有 Mac→Mac 的按键映射，绕不开，于是在 Keybot 里修根因：命中“Ctrl+键 → Cmd+键”规则时，先用 `tapPostEvent` 在按键前补发“Control 松开、Command 按下”；物理 Ctrl 松开时把该事件改写成“Command 松开”；按住 Ctrl 期间按了不改的键（如 Ctrl+K、终端无选区的 Ctrl+C），先补“Command 松开、Control 按下”还原；漏掉 Ctrl 松开时，下一个不带 Ctrl 的事件会补发 Command 松开自愈。为此事件监听新增了 `flagsChanged`。修好后无论本机键盘、Windows 远控还是 Mac 远控 Mac，应用看到的修饰键序列都是自洽的。
-  - **UU 自己漏发松开（2026-11-05 实测）**：Windows 远控 mac2 时，UU 发来“Command 按下 → C 按下 → C 松开 → Command 松开”，事件流里是配对的，但系统状态仍卡着左 Command（`0x20100008`），之后所有鼠标点击都带 Cmd 标记，持续 86 秒，直到 UU 又发了几组 Command 按下松开才恢复。这次事件来源全是 `UURemoteServer`，Keybot 没有参与，所以没法从 Keybot 的改键逻辑修。Keybot 加了一个自愈检查：每 0.5 秒对比系统修饰键状态和最近一次修饰键事件，“系统认为按着、事件说已松开”持续超过 1 秒，就补发一个松开（Keybot 自己做 Ctrl↔Command 交换期间不检查）。
+  - **UU 自己漏发松开（2026-11-05 实测）**：Windows 远控 mac2 时，UU 发来“Command 按下 → C 按下 → C 松开 → Command 松开”，事件流里是配对的，但系统状态仍卡着左 Command（`0x20100008`），之后所有鼠标点击都带 Cmd 标记，持续 86 秒，直到 UU 又发了几组 Command 按下松开才恢复。这次事件来源全是 `UURemoteServer`，Keybot 没有参与，所以没法从 Keybot 的改键逻辑修。Keybot 加了一个自愈检查：每 0.1 秒对比系统修饰键状态和最近一次修饰键事件，“系统认为按着、事件说已松开”持续超过 0.3 秒，就补发一个松开（Keybot 自己做 Ctrl↔Command 交换期间不检查）。
 
 ## 技术原理
 

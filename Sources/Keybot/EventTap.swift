@@ -59,21 +59,22 @@ final class EventTap {
         CGEvent.tapEnable(tap: tap, enable: true)
         isRunning = true
         healTimer?.invalidate()
-        healTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
+        healTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
             self?.healStuckModifiers()
         }
         return true
     }
 
     // 远控软件（如 UU）偶尔漏发修饰键松开：事件流里已经松开，系统状态却仍卡着，
-    // 表现为一直按着 Command/Ctrl。不一致持续 1 秒以上就补发一个松开。
+    // 表现为一直按着 Command/Ctrl。不一致持续 0.3 秒以上就补发一个松开（实测卡着时 0.7 秒内按回车会变成 Cmd+回车，所以不能等太久；
+    // 正常的事件先后顺序造成的不一致只有几毫秒）。
     private func healStuckModifiers() {
         guard !ctrlSwapped, !isCapturingKey else { stuckSince = nil; return }
         let sys = CGEventSource.flagsState(.hidSystemState).intersection(healMask)
         let stuck = sys.subtracting(lastModFlags)
         guard !stuck.isEmpty else { stuckSince = nil; return }
         guard let since = stuckSince else { stuckSince = Date(); return }
-        guard Date().timeIntervalSince(since) >= 1.0 else { return }
+        guard Date().timeIntervalSince(since) >= 0.3 else { return }
         stuckSince = nil
         let keys: [(CGEventFlags, CGKeyCode)] = [(.maskCommand, kcCommand), (.maskControl, kcControl),
                                                  (.maskAlternate, 58), (.maskShift, 56)]
