@@ -160,8 +160,30 @@ final class EventTap {
         return Unmanaged.passRetained(event)
     }
 
+    // 修饰键事件只能改变它自己那一位：UU 服务端拼 flags 时会吸入系统当前状态，
+    // 比如发一个 Control 松开却带着 Keybot 刚设的 Command，把 Command 重新断言成按下，
+    // 之后没有人再松开它。这里把"上一次状态里没有、又不属于该键码"的多余位去掉
+    private func stripPhantomModifiers(_ event: CGEvent) {
+        let keyCode = CGKeyCode(event.getIntegerValueField(.keyboardEventKeycode))
+        let table: [CGKeyCode: (CGEventFlags, UInt64)] = [
+            55: (.maskCommand, deviceCmdBits), 54: (.maskCommand, deviceCmdBits),
+            59: (.maskControl, deviceCtrlBits), 62: (.maskControl, deviceCtrlBits),
+            58: (.maskAlternate, 0x20 | 0x40), 61: (.maskAlternate, 0x20 | 0x40),
+            56: (.maskShift, 0x2 | 0x4), 60: (.maskShift, 0x2 | 0x4),
+        ]
+        guard let own = table[keyCode]?.0 else { return }
+        let phantom = event.flags.intersection(healMask).subtracting(lastModFlags).subtracting(own)
+        guard !phantom.isEmpty else { return }
+        var raw = event.flags.rawValue
+        for (flag, bits) in table.values where phantom.contains(flag) {
+            raw &= ~(flag.rawValue | bits)
+        }
+        event.flags = CGEventFlags(rawValue: raw)
+    }
+
     private func handleFlags(proxy: CGEventTapProxy, event: CGEvent) -> Unmanaged<CGEvent>? {
         if event.getIntegerValueField(.eventSourceUserData) != syntheticMarker {
+            stripPhantomModifiers(event)
             lastModFlags = event.flags.intersection(healMask)
         }
         guard ctrlSwapped, event.getIntegerValueField(.eventSourceUserData) != syntheticMarker else {
